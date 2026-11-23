@@ -54,6 +54,39 @@
   /* ================= model ================= */
   function build(data) {
     var tabs = data.tabs || {}, order = ['BA', 'AFI', 'Reports', 'Issues', 'Scope'];
+    
+// Main Drive folder that holds one folder per department (copy the ID from its link: .../folders/THIS_PART)
+var DOCS_FOLDER_ID = 'https://drive.google.com/drive/folders/1libn_1eQ7GxQw9S7YW3rRmz4Q_pfwouI?usp=sharing';
+
+// Which file in a department folder is which document (matched on the file name)
+var DOC_TYPES = { ba: /\bBA\b/i, scope: /scope/i };
+
+/** { 'finance department': { ba: {id, name, url}, scope: {...} }, ... } */
+function getDocs_() {
+  var out = {};
+  if (!DOCS_FOLDER_ID || /PASTE/.test(DOCS_FOLDER_ID)) return out;
+  var folders = DriveApp.getFolderById(DOCS_FOLDER_ID).getFolders();
+  while (folders.hasNext()) {
+    var f = folders.next(), docs = {}, files = f.getFiles();
+    while (files.hasNext()) {
+      var file = files.next(), name = file.getName();
+      Object.keys(DOC_TYPES).forEach(function (t) {
+        if (!docs[t] && DOC_TYPES[t].test(name)) docs[t] = { id: file.getId(), name: name, url: file.getUrl() };
+      });
+    }
+    out[clean_(f.getName()).toLowerCase()] = docs;
+  }
+  return out;
+}
+
+/** Same as getDocs_, but remembered for 10 minutes so Drive is not scanned on every refresh. */
+function getDocsCached_() {
+  var cache = CacheService.getScriptCache(), hit = cache.get('docs');
+  if (hit) return JSON.parse(hit);
+  var docs = getDocs_();
+  try { cache.put('docs', JSON.stringify(docs), 600); } catch (e) {}
+  return docs;
+}
     var fixed = {};                                 // figures from a tab with no week blocks (Scope): same value every week, not tracked weekly
     var depts = [], index = {}, nWeeks = 0, weeks = [];
 
@@ -92,7 +125,7 @@
       }
     });
 
-    var model = { depts: depts, weeks: weeks, M: M, missing: data.missing || [], generatedAt: data.generatedAt };
+    var model = { depts: depts, weeks: weeks, M: M, docs: data.docs || {}, missing: data.missing || [], generatedAt: data.generatedAt };
     var has = function (key, w) { return M[key][w].some(function (v) { return v !== null; }); };
     var nums = function (key, w) { return M[key][w].filter(isNum); };
     var sum = function (key, w) { return nums(key, w).reduce(function (a, b) { return a + b; }, 0); };
@@ -457,7 +490,7 @@
     var items = journeyItems(), counts = [0, 0, 0], none = [];
     items.forEach(function (d) { if (isNum(d.v)) counts[zoneOf(d.v)]++; else none.push(d.name); });
     var w = weekOf('inUse', viewWeek());
-    return '<div class="sec-head"><div><h2>Rollout journey</h2><p>Every department placed by how much the ERP is in use. Click a department for its details. ' + staleTag(w) + '</p></div>' +
+    return '<div class="sec-head"><div><h2>Rollout journey</h2><p>Every department placed by how much the ERP is in use. Click a department to jump to its card. ' + staleTag(w) + '</p></div>' +
       '<div class="zone-chips">' + ZONES.slice().reverse().map(function (z, k) {
         return '<span class="zone-chip ' + z.cls + '"><i class="zdot"></i><b>' + counts[2 - k] + '</b>' + z.mark + ' ' + z.name + '</span>';
       }).join('') + '</div></div>' +
@@ -570,7 +603,7 @@
     if (risk) status = '<div class="d-pills">' + status + '<span class="pill risk">▲ At risk</span></div>';
     return '<article class="card dept' + (risk ? ' risk' : '') + '" id="dept-' + r.no + '" data-no="' + r.no + '" tabindex="0" role="button" aria-label="Open details for ' + esc(r.name) + '">' +
       '<div class="d-head"><div><div class="d-no">Department ' + r.no + '</div><div class="d-name">' + esc(r.name) + '</div></div>' + status + '</div>' +
-      '<div class="d-ba"><div class="d-row"><span>BA progress' + move + '</span><b>' + pct(r.ba) + '</b></div>' + meter(r.ba) + '</div>' +
+      '<div class="d-ba"><div class="d-row"><span>BA progress' + move + docButton(r.no - 1, 'ba') + '</span><b>' + pct(r.ba) + '</b></div>' + meter(r.ba) + '</div>' +
       '<div class="chips"><span class="chip' + (r.scope ? ' yes' : '') + '">' + (r.scope ? '✓ ' : '') + 'Scope doc' + (r.scope ? '' : ' pending') + '</span>' +
       '<span class="chip' + (r.appr ? ' yes' : '') + '">' + (r.appr ? '✓ ' : '') + 'Approval' + (r.appr ? '' : ' pending') + '</span></div>' +
       '<div class="d-afi">' + afiRow('Availability', r.avail, 'var(--s1)') + afiRow('Functionality', r.func, 'var(--s2)') + afiRow('In use', r.inUse, 'var(--s3)') + '</div>' +
@@ -607,7 +640,7 @@
         (zone ? '<span class="zone-chip ' + zone.cls + '"><i class="zdot"></i>' + zone.mark + ' ' + zone.name + '</span>' : '') + '</div>' +
       '<div class="m-grid">' +
         sec('✅ Business analysis (BA)', big(pct(ba), 'BA progress') + meter(ba) +
-          '<div class="chips">' + chip(isYes(v('ba')), 'BA done', 'BA pending') + chip(isYes(v('scope')), 'Scope doc prepared', 'Scope doc pending') + chip(isYes(v('appr')), 'Scope doc approved', 'Approval pending') + '</div>') +
+          '<div class="chips">' + chip(isYes(v('ba')), 'BA done', 'BA pending') + docButton(i, 'ba', 'View BA document') + chip(isYes(v('scope')), 'Scope doc prepared', 'Scope doc pending') + chip(isYes(v('appr')), 'Scope doc approved', 'Approval pending') + '</div>') +
         sec('⚙️ System readiness (AFI)', '<div class="afi-rows">' + afiRow('Availability', v('avail'), 'var(--s1)') + afiRow('Functionality', v('func'), 'var(--s2)') + afiRow('In use', inUse, 'var(--s3)') + '</div>') +
         sec('📊 Reports', big(fmt(exp), 'total reports') + meter(isNum(exp) && exp ? done / exp * 100 : null) +
           '<div class="m-line"><span><b class="ok">' + fmt(done) + '</b> completed' + (isNum(exp) && exp ? ' · ' + pct(done / exp * 100) : '') + '</span><span><b class="wait">' + (isNum(exp) ? fmt(exp - done) : '–') + '</b> pending</span></div>') +
@@ -620,6 +653,78 @@
     document.body.style.overflow = 'hidden';
     $('modal').querySelector('.m-close').focus();
   }
+  /* Rollout journey click: scroll to that department's card and highlight it. */
+  function goToDept(no) {
+    if (S.q || S.view !== 'cards') {                 // make sure the card is visible
+      S.q = ''; S.view = 'cards';
+      if ($('q')) $('q').value = '';
+      Array.prototype.forEach.call($('view').children, function (c) { c.setAttribute('aria-pressed', String(c.getAttribute('data-view') === 'cards')); });
+      renderDeptBody();
+    }
+    var card = $('dept-' + no);
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+    setTimeout(function () { card.focus({ preventScroll: true }); }, 600);
+  }
+  /* ---------- department documents from Google Drive ---------- */
+  var DOC_LABEL = { ba: 'BA document', scope: 'Scope document', other: 'Other document' };
+  /* The Drive file for a department + type, matched on the department folder name. */
+  function docsFor(i, type) {                        // every file of that type, as a list
+    var docs = (S.model && S.model.docs) || {}, k = norm(S.model.depts[i]), hit = docs[k];
+    if (!hit) Object.keys(docs).some(function (f) {
+      if (f && (k.indexOf(f) >= 0 || f.indexOf(k) >= 0)) { hit = docs[f]; return true; }
+    });
+    var v = hit && hit[type];
+    return !v ? [] : Array.isArray(v) ? v : [v];
+  }
+  function docFor(i, type) { return docsFor(i, type)[0] || null; }
+  /* 📄 button (or a labelled button) that opens the document; empty when there is no file. */
+  function docButton(i, type, label) {
+    if (!docFor(i, type)) return '';
+    return '<button type="button" class="doc-btn' + (label ? ' lbl' : '') + '" data-doc-dept="' + i + '" data-doc-type="' + type + '" title="Open ' + DOC_LABEL[type] + '">' + (label ? '📄 ' + label : '📄') + '</button>';
+  }
+  /* Large popup with the Drive preview of the document. */
+  function openDoc(i, type, k) {
+    var d = docsFor(i, type)[k || 0];
+    if (!d) return;
+    $('modal').innerHTML = '<div class="m-box card m-doc" role="dialog" aria-modal="true" aria-label="' + esc(d.name) + '">' +
+      '<button type="button" class="m-close" aria-label="Close">✕</button>' +
+      '<div class="m-head"><div><div class="d-no">' + esc(S.model.depts[i]) + ' · ' + DOC_LABEL[type] + '</div><h2>' + esc(d.name) + '</h2></div>' +
+      (S.tab === 'scope' ? '<button type="button" class="btn sd-back" data-docs-dept="' + i + '">← All documents</button>' : '') +
+      '<a class="btn doc-open" href="' + esc(d.url) + '" target="_blank" rel="noopener">Open in Drive ↗</a></div>' +
+      '<iframe class="doc-frame" src="https://drive.google.com/file/d/' + encodeURIComponent(d.id) + '/preview" title="' + esc(d.name) + '"></iframe>' +
+      '<p class="note">Not showing? Sign in to Google with an account that can open this file, or use “Open in Drive”.</p></div>';
+    $('modal').hidden = false;
+    document.body.style.overflow = 'hidden';
+    $('modal').querySelector('.m-close').focus();
+  }
+
+  /* Popup listing every document that is not BA or Scope; click one to preview it. */
+  function openOthers(i) {
+    var list = docsFor(i, 'other'), name = S.model.depts[i];
+    $('modal').innerHTML = '<div class="m-box card sd-others" role="dialog" aria-modal="true" aria-label="Other documents for ' + esc(name) + '">' +
+      '<button type="button" class="m-close" aria-label="Close">✕</button>' +
+      '<div class="m-head"><span class="sd-others-ic" aria-hidden="true">📁</span><div><div class="d-no">' + esc(name) + '</div>' +
+      '<h2>Other documents <em class="sd-count">' + list.length + '</em></h2></div></div>' +
+      (list.length > 6 ? '<input class="sd-others-q" type="search" placeholder="Find a document" aria-label="Find a document">' : '') +
+      '<div class="sd-others-list">' + (list.length ? list.map(function (d, k) {
+        return '<button type="button" class="sd-file" data-doc-dept="' + i + '" data-doc-type="other" data-doc-idx="' + k + '" data-name="' + esc(norm(d.name)) + '">' +
+          '<span class="sd-file-ic" aria-hidden="true">📄</span><span class="sd-file-txt"><b>' + esc(d.name) + '</b>' +
+          (d.updated ? '<small>Updated ' + fmtDay(d.updated) + '</small>' : '') + '</span><span class="sd-file-go" aria-hidden="true">View →</span></button>';
+      }).join('') : '<p class="note">No other documents in this department folder yet.</p>') + '</div></div>';
+    $('modal').hidden = false;
+    document.body.style.overflow = 'hidden';
+    var q = $('modal').querySelector('.sd-others-q');
+    if (q) q.addEventListener('input', function () {
+      var t = norm(q.value);
+      Array.prototype.forEach.call($('modal').querySelectorAll('.sd-others-list .sd-file'), function (b) {
+        b.hidden = t && b.getAttribute('data-name').indexOf(t) < 0;
+      });
+    });
+    $('modal').querySelector('.m-close').focus();
+  }
+
   function closeDept() {
     if ($('modal').hidden) return;
     $('modal').hidden = true;
@@ -781,7 +886,7 @@
         var isZ = !isNum(r.open) ? null : r.open === 0 ? ZONES[2] : ZONES[1];
         return '<tr tabindex="0" data-no="' + r.no + '"><td><span>' + r.no + '</span>' + esc(r.name) + '</td>' +
           '<td><div class="x-ov">' + meter(r.overall, zo ? 'var(--z)' : '').replace('class="meter"', 'class="meter ' + (zo ? zo.cls : '') + '"') + '<b>' + pct(r.overall) + '</b></div></td>' +
-          '<td>' + stat(baZ, pct(r.ba)) + '</td><td>' + stat(scZ, r.appr ? 'Approved' : r.scope ? 'Prepared' : 'Pending') + '</td>' +
+          '<td>' + stat(baZ, pct(r.ba)) + docButton(r.no - 1, 'ba') + '</td><td>' + stat(scZ, r.appr ? 'Approved' : r.scope ? 'Prepared' : 'Pending') + '</td>' +
           '<td>' + stat(level(r.inUse), pct(r.inUse)) + '</td><td>' + stat(level(r.rPct), pct(r.rPct)) + '</td>' +
           '<td>' + stat(isZ, isNum(r.open) ? fmt(r.open) + ' of ' + fmt(r.all) : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
@@ -821,6 +926,138 @@
     $('app').querySelector('.x-table').addEventListener('keydown', open);
   }
 
+  /* ================= Tab 3: Scope & Documentation Tracker ================= */
+  var SD_STATUS = [
+    { key: 'pending',  cls: 'z-risk',  label: 'Scope pending' },
+    { key: 'awaiting', cls: 'z-adopt', label: 'Awaiting approval' },
+    { key: 'approved', cls: 'z-live',  label: 'Approved' }
+  ];
+  function fmtDay(ms) { if (!ms) return ''; var d = new Date(ms); return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear(); }
+
+  /* One row per department: BA progress (BA tab) + scope status (Scope tab) + all files (Drive). */
+  function scopeRows() {
+    var m = S.model, sel = m.latest;
+    return m.depts.map(function (name, i) {
+      var prep = isYes(deptVal('scope', i, sel)), appr = isYes(deptVal('appr', i, sel));
+      var baDone = isYes(deptVal('ba', i, sel)), baPct = deptVal('baPct', i, sel);
+      var ba = docsFor(i, 'ba'), sc = docsFor(i, 'scope'), other = docsFor(i, 'other');
+      return { i: i, no: i + 1, name: name, prep: prep || appr, appr: appr, baDone: baDone, baPct: baPct, ba: ba, sc: sc, other: other,
+        status: SD_STATUS[appr ? 2 : prep ? 1 : 0], missing: (ba.length ? 0 : 1) + (sc.length ? 0 : 1) };
+    });
+  }
+
+  function renderScope() {
+    var rows = scopeRows(), n = rows.length;
+    var count = function (f) { return rows.filter(f).length; };
+    var total = function (k) { return rows.reduce(function (a, r) { return a + r[k].length; }, 0); };
+    var prep = count(function (r) { return r.prep; }), appr = count(function (r) { return r.appr; });
+    var baDone = count(function (r) { return r.baDone; });
+    var baDepts = count(function (r) { return r.ba.length; }), scDepts = count(function (r) { return r.sc.length; });
+    var baFiles = total('ba'), scFiles = total('sc'), otFiles = total('other');
+    var byStatus = SD_STATUS.map(function (s) { return count(function (r) { return r.status === s; }); });
+    var share = function (v, of) { return of ? v / of * 100 : 0; };
+    var plural = function (v, w) { return v + ' ' + w + (v === 1 ? '' : 's'); };
+    $('subtitle').textContent = 'BA and scope documents, approvals and department files · ' + n + ' departments';
+
+    var card = function (tone, emoji, label, value, of, sub) {
+      var cls = tone === 'green' ? 'good' : tone === 'red' ? 'crit' : tone;
+      return '<div class="card x-fig sd-kpi tone-' + tone + '"><div class="t-top"><div class="x-lab">' + label + '</div><span class="t-emoji" aria-hidden="true">' + emoji + '</span></div>' +
+        '<div class="x-val c-' + cls + '">' + value + (of !== null ? '<small>of ' + of + '</small>' : '') + '</div>' +
+        (of !== null ? meter(share(value, of), 'var(--tone)') : '') + '<div class="x-sub">' + sub + '</div></div>';
+    };
+    var kpis = '<section class="sd-kpis">' +
+      card('teal', '🧭', 'BA completed', baDone, n, plural(baDepts, 'department') + ' with BA documents') +
+      card('amber', '📝', 'Scope documents prepared', prep, n, (n - prep) + ' still to prepare') +
+      card('green', '✅', 'Scope documents approved', appr, n, (prep - appr) + ' awaiting approval') +
+      '</section>';
+
+    var f = S.sdFilter || 'all';
+    var chip = function (key, label, num) { return '<button type="button" data-f="' + key + '" aria-pressed="' + (f === key) + '">' + label + ' <b>' + num + '</b></button>'; };
+    var tools = '<div class="sec-head"><div><h2>Departments</h2><p>Click a 📄 file to preview it. Status comes from the BA and Scope tabs; files come from each department folder in Drive.</p></div>' +
+      '<div class="tools"><input id="sd-q" type="search" placeholder="Find a department" aria-label="Find a department" value="' + esc(S.sdQ || '') + '">' +
+      '<div class="toggle sd-filter" id="sd-filter">' + chip('all', 'All', n) + chip('pending', 'Scope pending', byStatus[0]) +
+      chip('awaiting', 'Awaiting approval', byStatus[1]) + chip('approved', 'Approved', byStatus[2]) +
+      chip('missing', 'Missing files', count(function (r) { return r.missing; })) + '</div></div></div>';
+
+    $('app').innerHTML = '<div class="sd">' + kpis + tools + '<div id="sd-body"></div></div>';
+    renderScopeBody();
+    $('sd-q').addEventListener('input', function (e) { S.sdQ = e.target.value; renderScopeBody(); });
+    $('sd-filter').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-f]');
+      if (!b) return;
+      S.sdFilter = b.getAttribute('data-f');
+      Array.prototype.forEach.call($('sd-filter').children, function (c) { c.setAttribute('aria-pressed', String(c === b)); });
+      renderScopeBody();
+    });
+  }
+
+  function renderScopeBody() {
+    var host = $('sd-body');
+    if (!host) return;
+    var f = S.sdFilter || 'all', q = norm(S.sdQ);
+    var rows = scopeRows().filter(function (r) {
+      if (q && norm(r.name).indexOf(q) < 0) return false;
+      return f === 'all' || (f === 'missing' ? r.missing > 0 : r.status.key === f);
+    });
+    if (!rows.length) { host.innerHTML = '<div class="card state">No department matches this filter.</div>'; return; }
+
+    /* Compact summary: one row per department; click a row to see and open its documents. */
+    var dots = function (r) {
+      return '<span class="sd-ticks" aria-label="Progress">' + [r.baDone || r.ba.length > 0, r.prep, r.appr].map(function (d, k) {
+        return '<span class="sd-tick' + (d ? ' done' : '') + '" title="' + ['BA', 'Scope prepared', 'Scope approved'][k] + (d ? ': done' : ': pending') + '">' +
+          '<i>' + (d ? '✓' : '') + '</i>' + ['BA', 'Scope', 'Approved'][k] + '</span>';
+      }).join('') + '</span>';
+    };
+    var count = function (n) { return '<span class="sd-n' + (n ? '' : ' zero') + '">📄 ' + n + '</span>'; };
+    host.innerHTML = '<div class="card sd-list"><div class="table-wrap"><table class="sd-table"><thead><tr>' +
+      '<th>Department</th><th>Progress</th><th>BA</th><th>BA files</th><th>Scope</th><th>Scope files</th><th>Other files</th><th></th></tr></thead><tbody>' +
+      rows.map(function (r) {
+        var baZ = r.baDone ? ZONES[2] : r.ba.length || (isNum(r.baPct) && r.baPct > 0) ? ZONES[1] : ZONES[0];
+        return '<tr tabindex="0" data-docs-dept="' + r.i + '" title="View documents for ' + esc(r.name) + '">' +
+          '<td><span class="sd-no">' + r.no + '</span>' + esc(r.name) + '</td>' +
+          '<td>' + dots(r) + '</td>' +
+          '<td><span class="x-s ' + baZ.cls + '"><i class="zdot"></i>' + (r.baDone ? 'Complete' : pct(r.baPct)) + '</span></td>' +
+          '<td>' + count(r.ba.length) + '</td>' +
+          '<td><span class="x-s ' + r.status.cls + '"><i class="zdot"></i>' + r.status.label + '</span></td>' +
+          '<td>' + count(r.sc.length) + '</td>' +
+          '<td>' + count(r.other.length) + '</td>' +
+          '<td class="sd-go">View documents →</td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+  }
+
+  /* Popup with every document of one department: BA, Scope and Other; click a file to preview it. */
+  function openDeptDocs(i) {
+    var r = scopeRows()[i];
+    if (!r) return;
+    var section = function (title, type, list) {
+      return '<section class="sd-doc-col"><h4>' + title + ' <em class="sd-count">' + list.length + '</em></h4>' + (list.length ? list.map(function (d, k) {
+        return '<button type="button" class="sd-file" data-doc-dept="' + i + '" data-doc-type="' + type + '" data-doc-idx="' + k + '" data-name="' + esc(norm(d.name)) + '">' +
+          '<span class="sd-file-ic" aria-hidden="true">📄</span><span class="sd-file-txt"><b>' + esc(d.name) + '</b>' +
+          (d.updated ? '<small>Updated ' + fmtDay(d.updated) + '</small>' : '') + '</span></button>';
+      }).join('') : '<span class="sd-file none">Not uploaded</span>') + '</section>';
+    };
+    var all = r.ba.length + r.sc.length + r.other.length;
+    var baZ = r.baDone ? ZONES[2] : r.ba.length || (isNum(r.baPct) && r.baPct > 0) ? ZONES[1] : ZONES[0];
+    $('modal').innerHTML = '<div class="m-box card sd-docs" role="dialog" aria-modal="true" aria-label="Documents for ' + esc(r.name) + '">' +
+      '<button type="button" class="m-close" aria-label="Close">✕</button>' +
+      '<div class="m-head"><span class="sd-others-ic" aria-hidden="true">📁</span><div><div class="d-no">Department ' + r.no + ' · ' + all + ' document' + (all === 1 ? '' : 's') + '</div>' +
+      '<h2>' + esc(r.name) + '</h2></div>' +
+      '<span class="x-tag ' + baZ.cls + '"><i class="zdot"></i>BA ' + (r.baDone ? 'complete' : pct(r.baPct)) + '</span>' +
+      '<span class="x-tag ' + r.status.cls + '"><i class="zdot"></i>' + r.status.label + '</span></div>' +
+      (all > 8 ? '<input class="sd-others-q" type="search" placeholder="Find a document" aria-label="Find a document">' : '') +
+      '<div class="sd-doc-cols">' + section('BA documents', 'ba', r.ba) + section('Scope documents', 'scope', r.sc) + section('Other documents', 'other', r.other) + '</div></div>';
+    $('modal').hidden = false;
+    document.body.style.overflow = 'hidden';
+    var q = $('modal').querySelector('.sd-others-q');
+    if (q) q.addEventListener('input', function () {
+      var t = norm(q.value);
+      Array.prototype.forEach.call($('modal').querySelectorAll('.sd-doc-col .sd-file[data-name]'), function (b) {
+        b.hidden = t && b.getAttribute('data-name').indexOf(t) < 0;
+      });
+    });
+    $('modal').querySelector('.m-close').focus();
+  }
+
   /* Tabs 3 and 4 are placeholders until they are built. */
   function renderSoon(tab) {
     var info = tab === 'scope'
@@ -842,6 +1079,7 @@
     }
     Array.prototype.forEach.call($('tabs').children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-tab') === S.tab)); });
     if (S.tab === 'summary') { renderSummary(animate); return; }
+    if (S.tab === 'scope') { renderScope(); return; }
     if (S.tab !== 'tracker') { renderSoon(S.tab); return; }
     var wk = m.weeks[S.sel];
     $('subtitle').textContent = 'Status as of ' + wk.label + (wk.date ? ' · ' + niceDate(wk.date, true) : '') + ' · ' + m.depts.length + ' departments';
@@ -854,7 +1092,7 @@
     if (animate) countUp();
     $('journey').addEventListener('click', function (e) {
       var b = e.target.closest('.j-node');
-      if (b) openDept(Number(b.getAttribute('data-no')));
+      if (b) goToDept(Number(b.getAttribute('data-no')));
     });
     var openFromCard = function (e) {
       var c = e.target.closest('.dept[data-no]');
@@ -957,6 +1195,32 @@
       el.textContent = steps[i];
     }, 900);
   })();
+  /* 📄 buttons: open the document instead of the row / card they sit in */
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-doc-type]');
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    openDoc(Number(b.getAttribute('data-doc-dept')), b.getAttribute('data-doc-type'), Number(b.getAttribute('data-doc-idx') || 0));
+  }, true);
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-other-dept]');
+    if (!b || b.disabled) return;
+    e.preventDefault(); e.stopPropagation();
+    openOthers(Number(b.getAttribute('data-other-dept')));
+  }, true);
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-docs-dept]');
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    openDeptDocs(Number(b.getAttribute('data-docs-dept')));
+  }, true);
+  document.addEventListener('keydown', function (e) {
+    var b = e.target.closest && e.target.closest('tr[data-docs-dept]');
+    if (b && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openDeptDocs(Number(b.getAttribute('data-docs-dept'))); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('[data-doc-type]')) e.stopPropagation();
+  }, true);
 
   $('modal').addEventListener('click', function (e) { if (e.target === $('modal') || e.target.closest('.m-close')) closeDept(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDept(); });
