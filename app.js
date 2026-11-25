@@ -603,7 +603,7 @@ function getDocsCached_() {
     if (risk) status = '<div class="d-pills">' + status + '<span class="pill risk">▲ At risk</span></div>';
     return '<article class="card dept' + (risk ? ' risk' : '') + '" id="dept-' + r.no + '" data-no="' + r.no + '" tabindex="0" role="button" aria-label="Open details for ' + esc(r.name) + '">' +
       '<div class="d-head"><div><div class="d-no">Department ' + r.no + '</div><div class="d-name">' + esc(r.name) + '</div></div>' + status + '</div>' +
-      '<div class="d-ba"><div class="d-row"><span>BA progress' + move + docButton(r.no - 1, 'ba') + '</span><b>' + pct(r.ba) + '</b></div>' + meter(r.ba) + '</div>' +
+      '<div class="d-ba"><div class="d-row"><span>BA progress' + move + '</span><b>' + pct(r.ba) + '</b></div>' + meter(r.ba) + '</div>' +
       '<div class="chips"><span class="chip' + (r.scope ? ' yes' : '') + '">' + (r.scope ? '✓ ' : '') + 'Scope doc' + (r.scope ? '' : ' pending') + '</span>' +
       '<span class="chip' + (r.appr ? ' yes' : '') + '">' + (r.appr ? '✓ ' : '') + 'Approval' + (r.appr ? '' : ' pending') + '</span></div>' +
       '<div class="d-afi">' + afiRow('Availability', r.avail, 'var(--s1)') + afiRow('Functionality', r.func, 'var(--s2)') + afiRow('In use', r.inUse, 'var(--s3)') + '</div>' +
@@ -640,7 +640,7 @@ function getDocsCached_() {
         (zone ? '<span class="zone-chip ' + zone.cls + '"><i class="zdot"></i>' + zone.mark + ' ' + zone.name + '</span>' : '') + '</div>' +
       '<div class="m-grid">' +
         sec('✅ Business analysis (BA)', big(pct(ba), 'BA progress') + meter(ba) +
-          '<div class="chips">' + chip(isYes(v('ba')), 'BA done', 'BA pending') + docButton(i, 'ba', 'View BA document') + chip(isYes(v('scope')), 'Scope doc prepared', 'Scope doc pending') + chip(isYes(v('appr')), 'Scope doc approved', 'Approval pending') + '</div>') +
+          '<div class="chips">' + chip(isYes(v('ba')), 'BA done', 'BA pending') + chip(isYes(v('scope')), 'Scope doc prepared', 'Scope doc pending') + chip(isYes(v('appr')), 'Scope doc approved', 'Approval pending') + '</div>') +
         sec('⚙️ System readiness (AFI)', '<div class="afi-rows">' + afiRow('Availability', v('avail'), 'var(--s1)') + afiRow('Functionality', v('func'), 'var(--s2)') + afiRow('In use', inUse, 'var(--s3)') + '</div>') +
         sec('📊 Reports', big(fmt(exp), 'total reports') + meter(isNum(exp) && exp ? done / exp * 100 : null) +
           '<div class="m-line"><span><b class="ok">' + fmt(done) + '</b> completed' + (isNum(exp) && exp ? ' · ' + pct(done / exp * 100) : '') + '</span><span><b class="wait">' + (isNum(exp) ? fmt(exp - done) : '–') + '</b> pending</span></div>') +
@@ -886,7 +886,7 @@ function getDocsCached_() {
         var isZ = !isNum(r.open) ? null : r.open === 0 ? ZONES[2] : ZONES[1];
         return '<tr tabindex="0" data-no="' + r.no + '"><td><span>' + r.no + '</span>' + esc(r.name) + '</td>' +
           '<td><div class="x-ov">' + meter(r.overall, zo ? 'var(--z)' : '').replace('class="meter"', 'class="meter ' + (zo ? zo.cls : '') + '"') + '<b>' + pct(r.overall) + '</b></div></td>' +
-          '<td>' + stat(baZ, pct(r.ba)) + docButton(r.no - 1, 'ba') + '</td><td>' + stat(scZ, r.appr ? 'Approved' : r.scope ? 'Prepared' : 'Pending') + '</td>' +
+          '<td>' + stat(baZ, pct(r.ba)) + '</td><td>' + stat(scZ, r.appr ? 'Approved' : r.scope ? 'Prepared' : 'Pending') + '</td>' +
           '<td>' + stat(level(r.inUse), pct(r.inUse)) + '</td><td>' + stat(level(r.rPct), pct(r.rPct)) + '</td>' +
           '<td>' + stat(isZ, isNum(r.open) ? fmt(r.open) + ' of ' + fmt(r.all) : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
