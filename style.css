@@ -1268,3 +1268,46 @@ tr[aria-expanded]:hover td { filter: none; background-image: linear-gradient(0de
   content: attr(data-tip); font-size: 14px; font-weight: 700; padding: 9px 14px; border-radius: 9px; left: calc(100% + 12px);
   transform: translateY(-50%) scale(calc(1 / 1.3)); transform-origin: left center; z-index: 60; }
 .tk-railavg[data-tip]:hover::after { transform: translateY(-50%) scale(calc(1 / 1.15)); }
+/* Header v2 sizing: name + progress card take what they need, metric cards share the rest. */
+.tk-body { container-type: inline-size; }
+.tk-head.hd { grid-template-columns: auto auto minmax(0, 1fr); }
+.hd-m { min-width: 0; }
+.hd-mt span, .hd-mt b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Narrower task area (departments panel open): slimmer metric cards. */
+@container (max-width: 1650px) {
+  .hd-mi { display: none; }
+  .hd-m { grid-template-columns: 1fr; padding: 9px 12px 10px; gap: 6px; }
+  .hd-mt b { font-size: 18px; }
+  .hd-prog { padding: 10px 14px; gap: 12px; }
+  .hd-pl { min-width: 140px; }
+  .hd-pr { padding-left: 12px; }
+}
+@container (max-width: 1250px) {
+  .tk-head.hd { grid-template-columns: auto minmax(0, 1fr); }
+  .hd-ms { grid-column: 1 / -1; }
+}
+/* Header v2: ALWAYS one row — everything shrinks instead of wrapping to a second line. */
+.tk-head.hd { grid-template-columns: auto auto minmax(0, 1fr) !important; }
+.tk-head.hd .hd-ms { grid-column: auto !important; }
+.hd-prog { min-width: 0; }
+@container (max-width: 1450px) {
+  .tk-head.hd { gap: 10px; }
+  .hd-ic { width: 36px; height: 36px; } .hd-ic svg { width: 19px; height: 19px; }
+  .hd-name h2 { font-size: 20px; }
+  .hd-name p { font-size: 11.5px; }
+  .hd .tk-chip { padding: 3px 10px; font-size: 12.5px; }
+  .hd-prog { padding: 8px 12px; gap: 10px; }
+  .hd-lab { font-size: 12px; }
+  .hd-big, .hd-rank { font-size: 22px; } .hd-rank span { font-size: 16px; } .hd-rank em { font-size: 11px; vertical-align: 4px; }
+  .hd-pl { min-width: 120px; } .hd-pl small { font-size: 10.5px; }
+  .hd-pr { padding-left: 10px; gap: 5px; }
+  .hd-diff { font-size: 11px; padding: 3px 7px; }
+  .hd-ms { gap: 8px; }
+  .hd-m { padding: 8px 10px 9px; }
+  .hd-mt span { font-size: 11.5px; } .hd-mt b { font-size: 16px; }
+}
+@container (max-width: 1250px) {
+  .hd-crumb { display: none; }
+  .hd-pl small { display: none; }
+  .hd-mt b { font-size: 15px; }
+}
