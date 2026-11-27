@@ -1011,6 +1011,134 @@ function getDocsCached_() {
   function numOf(s) { var n = parseFloat(String(s).replace('%', '')); return isNaN(n) ? null : n; }
   function zMeter(v) { var z = level(v); return meter(v, z ? 'var(--z)' : '').replace('class="meter"', 'class="meter ' + (z ? z.cls : '') + '"'); }
 
+  /* Small progress ring (used in the task list and the task map). */
+  function ring(v, size) {
+    var n = isNum(v) ? Math.max(0, Math.min(100, v)) : 0, z = level(v), r = 8;
+    return '<svg class="tk-ring ' + (z ? z.cls : '') + '" viewBox="0 0 20 20" width="' + (size || 20) + '" height="' + (size || 20) + '" aria-hidden="true">' +
+      '<circle cx="10" cy="10" r="' + r + '" fill="none" stroke="var(--track)" stroke-width="3"/>' +
+      (n > 0 ? '<circle cx="10" cy="10" r="' + r + '" fill="none" stroke="var(--z, var(--s1))" stroke-width="3" stroke-linecap="round" pathLength="100" stroke-dasharray="' + n + ' 100" transform="rotate(-90 10 10)"/>' : '') + '</svg>';
+  }
+
+  /* Task map: All departments → department → Main → Sub → Final, like the document map. */
+  var TM_COL = [0, 210, 470, 790, 1110], TM_W = [180, 230, 290, 290, 280], TM_H = 44, TM_ROW = 54;
+  function renderTaskMap(host) {
+    var depts = S.tasks || [];
+    var open = S.tmOpen || (S.tmOpen = { root: true });
+    var view = S.tmView || (S.tmView = { x: 24, y: 24, k: 0.9 });
+    var avg = function (a) { a = a.filter(isNum); return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : null; };
+    var valsPct = function (vals) { return avg(vals.map(function (v) { return numOf(v.v); })); };
+    var deptP = function (d) { var p = numOf(d.progress); return p !== null ? p : avg([numOf(d.a), numOf(d.f), numOf(d.u)]); };
+    var tree = { id: 'root', kind: 'root', label: 'All departments', sub: depts.length + ' departments', children: depts.map(function (d, di) {
+      var nSub = 0, nFin = 0;
+      d.mains.forEach(function (m) { nSub += m.subs.length; m.subs.forEach(function (s) { nFin += s.finals.length; }); });
+      return { id: 'd' + di, kind: 'dept', label: d.name, p: deptP(d), sub: d.mains.length + ' main · ' + nSub + ' sub · ' + nFin + ' final', children: d.mains.map(function (m, mi) {
+        return { id: 'd' + di + 'm' + mi, kind: 'main', label: (m.no ? m.no + '  ' : '') + m.task, p: valsPct(m.vals), sub: m.subs.length + ' sub tasks', children: m.subs.map(function (s, si) {
+          return { id: 'd' + di + 'm' + mi + 's' + si, kind: 'sub', label: (s.no ? s.no + '  ' : '') + s.task, p: valsPct(s.vals), sub: s.finals.length ? s.finals.length + ' final tasks' : 'no final tasks', children: s.finals.map(function (f, fi) {
+            var ticks = f.vals.map(function (v) { return /^true$/i.test(v.v); });
+            return { id: 'd' + di + 'm' + mi + 's' + si + 'f' + fi, kind: 'fin', label: (f.no ? f.no + '  ' : '') + f.task, ticks: ticks, children: [] };
+          }) };
+        }) };
+      }) };
+    }) };
+
+    var nodes = [], links = [], y = 0;
+    (function place(nd, depth) {
+      nd.depth = depth; nd.x = TM_COL[depth];
+      var kids = nd.children.length && open[nd.id] ? nd.children : [];
+      if (!kids.length) { nd.y = y; y += TM_ROW; }
+      else {
+        kids.forEach(function (k) { place(k, depth + 1); });
+        nd.y = (kids[0].y + kids[kids.length - 1].y) / 2;
+        kids.forEach(function (k) { links.push([nd, k]); });
+      }
+      nodes.push(nd);
+    })(tree, 0);
+    var maxDepth = nodes.reduce(function (a, n) { return Math.max(a, n.depth); }, 0);
+    var W = TM_COL[maxDepth] + TM_W[maxDepth] + 40, H = Math.max(y, TM_ROW);
+    var paths = links.map(function (l) {
+      var a = l[0], b = l[1], x1 = a.x + TM_W[a.depth], y1 = a.y + TM_H / 2, x2 = b.x, y2 = b.y + TM_H / 2, mx = (x1 + x2) / 2;
+      return '<path d="M' + x1 + ' ' + y1 + 'C' + mx + ' ' + y1 + ' ' + mx + ' ' + y2 + ' ' + x2 + ' ' + y2 + '"/>';
+    }).join('');
+    var LETTERS = ['A', 'F', 'U'], NAMES = ['Availability', 'Functionality', 'In use'];
+    var html = nodes.map(function (nd) {
+      var has = nd.children.length, isOpen = !!open[nd.id];
+      var pos = 'left:' + nd.x + 'px;top:' + nd.y + 'px;width:' + TM_W[nd.depth] + 'px;height:' + TM_H + 'px';
+      var lead = nd.kind === 'root' ? '' : nd.kind === 'fin'
+        ? '<span class="tm-ticks">' + nd.ticks.map(function (t, k) { return '<i class="' + (t ? 'on' : '') + '" title="' + NAMES[k] + (t ? ': done' : ': not done') + '">' + LETTERS[k] + '</i>'; }).join('') + '</span>'
+        : ring(nd.p, 22);
+      var tail = nd.kind !== 'root' && nd.kind !== 'fin' ? '<em class="tm-p">' + pct(nd.p === null ? null : Math.round(nd.p)) + '</em>' : '';
+      return '<div class="dm-node tm-' + nd.kind + (has ? ' can-open' : '') + '" style="' + pos + '"' + (has ? ' data-tm="' + nd.id + '" role="button" tabindex="0" aria-expanded="' + isOpen + '"' : '') + ' title="' + esc(nd.label) + '">' +
+        lead + '<span class="dm-txt"><b>' + esc(nd.label) + '</b>' + (nd.sub ? '<small>' + esc(nd.sub) + '</small>' : '') + '</span>' + tail +
+        (has ? '<span class="dm-tog" aria-hidden="true">' + (isOpen ? '‹' : '›') + '</span>' : '') + '</div>';
+    }).join('');
+
+    host.innerHTML = '<div class="card dm tm">' +
+      '<div class="dm-bar"><span class="dm-hint">Click a box to open or close it · drag to move · scroll to zoom · A / F / U = Availability, Functionality, In use</span>' +
+      '<div class="dm-tools"><button type="button" class="btn" data-tm-act="depts">Departments</button><button type="button" class="btn" data-tm-act="mains">Show main tasks</button><button type="button" class="btn" data-tm-act="subs">Show sub tasks</button>' +
+      '<button type="button" class="btn dm-z" data-tm-act="out" aria-label="Zoom out">−</button><button type="button" class="btn dm-z" data-tm-act="in" aria-label="Zoom in">+</button>' +
+      '<button type="button" class="btn" data-tm-act="reset">Reset view</button></div></div>' +
+      '<div class="dm-view" id="tm-view"><div class="dm-canvas" id="tm-canvas" style="width:' + W + 'px;height:' + H + 'px">' +
+      '<svg class="dm-links" width="' + W + '" height="' + H + '" aria-hidden="true">' + paths + '</svg>' + html + '</div></div></div>';
+
+    var canvas = $('tm-canvas'), vp = $('tm-view');
+    var apply = function () { canvas.style.transform = 'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.k + ')'; };
+    var zoom = function (f, cx, cy) {
+      var k = Math.max(0.3, Math.min(2, view.k * f));
+      if (cx === undefined) { var b = vp.getBoundingClientRect(); cx = b.width / 2; cy = b.height / 2; }
+      view.x = cx - (cx - view.x) * k / view.k; view.y = cy - (cy - view.y) * k / view.k; view.k = k; apply();
+    };
+    apply();
+    var toggle = function (id) { open[id] = !open[id]; renderTaskMap(host); };
+    vp.addEventListener('click', function (e) { var nd = e.target.closest('[data-tm]'); if (nd && !vp.dragged) toggle(nd.getAttribute('data-tm')); });
+    vp.addEventListener('keydown', function (e) {
+      var nd = e.target.closest('[data-tm]');
+      if (nd && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(nd.getAttribute('data-tm')); }
+    });
+    var drag = null;
+    vp.addEventListener('pointerdown', function (e) { if (e.button !== 0) return; drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; vp.dragged = false; });
+    var move = function (e) {
+      if (!drag) return;
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) { vp.dragged = true; vp.classList.add('grabbing'); }
+      if (vp.dragged) { view.x = drag.vx + dx; view.y = drag.vy + dy; apply(); }
+    };
+    var up = function () { drag = null; vp.classList.remove('grabbing'); setTimeout(function () { vp.dragged = false; }, 0); };
+    window.removeEventListener('pointermove', S.tmMove || move); window.removeEventListener('pointerup', S.tmUp || up);
+    S.tmMove = move; S.tmUp = up;
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+    vp.addEventListener('click', function (e) { if (vp.dragged) { e.stopPropagation(); e.preventDefault(); } }, true);
+    vp.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var b = vp.getBoundingClientRect();
+      zoom(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - b.left, e.clientY - b.top);
+    }, { passive: false });
+    host.querySelector('.dm-tools').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-tm-act]');
+      if (!b) return;
+      var act = b.getAttribute('data-tm-act');
+      if (act === 'in') zoom(1.2);
+      else if (act === 'out') zoom(1 / 1.2);
+      else if (act === 'reset') { S.tmView = null; renderTaskMap(host); }
+      else {
+        var o = { root: true };
+        tree.children.forEach(function (d) {
+          if (act !== 'depts') o[d.id] = true;
+          if (act === 'subs') d.children.forEach(function (m) { o[m.id] = true; });
+        });
+        S.tmOpen = o; S.tmView = null; renderTaskMap(host);
+      }
+    });
+  }
+
+  /* List / Map switch for Task Breakdown */
+  function tkModeSwitch() {
+    return '<div class="toggle tk-mode" role="group" aria-label="Task view"><button type="button" data-tk-mode="list" aria-pressed="' + (S.tkMode !== 'map') + '">☰ List</button><button type="button" data-tk-mode="map" aria-pressed="' + (S.tkMode === 'map') + '">⟡ Map</button></div>';
+  }
+  function bindTkMode() {
+    Array.prototype.forEach.call($('app').querySelectorAll('[data-tk-mode]'), function (b) {
+      b.addEventListener('click', function () { if (S.tkMode === b.getAttribute('data-tk-mode') || (!S.tkMode && b.getAttribute('data-tk-mode') === 'list')) return; S.tkMode = b.getAttribute('data-tk-mode'); renderTasks(); });
+    });
+  }
   function renderTasks() {
     var depts = S.tasks;
     $('subtitle').textContent = 'Task breakdown by department · Main, Sub and Final tasks as entered by each department';
@@ -1029,18 +1157,22 @@ function getDocsCached_() {
     };
 
     var side = '<aside class="card tk-side"><div class="tk-sidehead"><div class="x-lab">Departments</div><button type="button" class="tk-fold" data-tk-side="1" aria-label="' + (S.tkHide ? 'Show departments' : 'Hide departments') + '" title="' + (S.tkHide ? 'Show departments' : 'Hide departments') + '">' + (S.tkHide ? '›' : '‹') + '</button></div><div class="tk-list">' +
+      '<button type="button" class="tk-dept tk-mapbtn" data-tk-map="1" aria-pressed="' + (S.tkMode === 'map') + '" title="Map of every department&#39;s tasks">' + icon('🧭', 17) + '<span class="tk-dn">All departments map</span></button>' +
       depts.map(function (x) {
         var p = deptPct(x);
-        return '<button type="button" class="tk-dept" data-tk-dept="' + esc(x.name) + '" aria-pressed="' + (x === d) + '">' +
+        return '<button type="button" class="tk-dept" data-tk-dept="' + esc(x.name) + '" aria-pressed="' + (S.tkMode !== 'map' && x === d) + '">' +
           '<span class="tk-dn">' + esc(x.name) + '</span><span class="tk-dp">' + pct(p) + '</span>' + zMeter(p) + '</button>';
       }).join('') + '</div></aside>';
 
-    var pill = function (label, v) { var z = level(numOf(v)); return '<div class="tk-pill ' + (z ? z.cls : '') + '"><span>' + label + '</span><b>' + esc(v || '–') + '</b></div>'; };
+    var pill = function (label, v, tone) { return '<div class="tk-pill tone-' + tone + '"><span>' + label + '</span><b>' + esc(v || '–') + '</b></div>'; };
     var nSub = 0, nFin = 0;
     d.mains.forEach(function (m) { nSub += m.subs.length; m.subs.forEach(function (s) { nFin += s.finals.length; }); });
     var head = '<div class="tk-head"><div><div class="x-lab">Department</div><h2>' + esc(d.name) + '</h2>' +
-      '<p>HOD: <b>' + esc(d.hod || '–') + '</b> · ' + d.mains.length + ' main · ' + nSub + ' sub · ' + nFin + ' final tasks</p></div>' +
-      '<div class="tk-pills">' + pill('Progress', d.progress || pct(deptPct(d))) + pill('Availability', d.a) + pill('Functionality', d.f) + pill('In use', d.u) + '</div></div>';
+      '<p>HOD: <b>' + esc(d.hod || '–') + '</b></p><div class="tk-chips" role="group" aria-label="Show only">' +
+        [['', 'All tasks', ''], ['main', d.mains.length, 'main'], ['sub', nSub, 'sub'], ['final', nFin, 'final']].map(function (c) {
+          return '<button type="button" class="tk-chip tk-chip-' + (c[0] || 'all') + '" data-tk-filter="' + c[0] + '" aria-pressed="' + ((S.tkFilter || '') === c[0]) + '">' + (c[0] ? '<b>' + c[1] + '</b> ' + c[2] : c[1]) + '</button>';
+        }).join('') + '</div></div>' +
+      '<div class="tk-pills">' + pill('Department Progress', d.progress || pct(deptPct(d)), 'blue') + pill('Availability', d.a, 'teal') + pill('Functionality', d.f, 'amber') + pill('In use', d.u, 'green') + '</div></div>';
 
     var dw = function (v) { return !S.tkDates ? '' : '<td class="tk-d">' + esc(v.date) + '</td><td class="tk-w">' + esc(v.week) + '</td>'; };
     var pctCell = function (v) {
@@ -1051,8 +1183,17 @@ function getDocsCached_() {
       var on = /^true$/i.test(v.v);
       return '<td class="tk-v"><span class="tk-tick' + (on ? ' on' : '') + '" role="img" aria-label="' + (on ? 'Done' : 'Not done') + '">' + (on ? '✓' : '') + '</span></td>' + dw(v);
     };
-    var rows = '';
-    d.mains.forEach(function (m, mi) {
+    var rows = '', flt = S.tkFilter || '';
+    if (flt) d.mains.forEach(function (m) {                                    // filtered: one flat list of that level only
+      if (flt === 'main') rows += '<tr class="tk-main"><td>Main Task</td><td>' + esc(m.no) + '</td><td class="tk-t">' + esc(m.task) + '</td>' + m.vals.map(pctCell).join('') + '</tr>';
+      m.subs.forEach(function (s) {
+        if (flt === 'sub') rows += '<tr class="tk-sub"><td>Sub Task' + (s.finals.length ? ' <em>' + s.finals.length + '</em>' : '') + '</td><td>' + esc(s.no) + '</td><td class="tk-t">' + esc(s.task) + '</td>' + s.vals.map(pctCell).join('') + '</tr>';
+        if (flt === 'final') s.finals.forEach(function (f) {
+          rows += '<tr class="tk-fin"><td>Final Task</td><td>' + esc(f.no) + '</td><td class="tk-t">' + esc(f.task) + '</td>' + f.vals.map(tickCell).join('') + '</tr>';
+        });
+      });
+    });
+    else d.mains.forEach(function (m, mi) {
       var mk = d.name + '|' + mi, mOpen = S.tkOpen[mk] !== false;
       rows += '<tr class="tk-main" data-tk-key="' + esc(mk) + '" tabindex="0" aria-expanded="' + mOpen + '"><td><span class="tk-car">' + (mOpen ? '▾' : '▸') + '</span>Main Task</td><td>' + esc(m.no) + '</td><td class="tk-t">' + esc(m.task) + '</td>' + m.vals.map(pctCell).join('') + '</tr>';
       if (!mOpen) return;
@@ -1064,26 +1205,33 @@ function getDocsCached_() {
         });
       });
     });
-    var table = '<div class="table-wrap tk-wrap"><table class="tk-table"><thead>' +
-      '<tr><th rowspan="2">Task Category</th><th rowspan="2">No</th><th rowspan="2" class="tk-t">Task</th>' + ['Availability', 'Functionality', 'In use'].map(function (h) { return '<th colspan="' + (!S.tkDates ? 1 : 3) + '" class="tk-grp">' + h + '</th>'; }).join('') + '</tr>' +
-      '<tr>' + [0, 1, 2].map(function () { return '<th class="tk-grp">%</th>' + (!S.tkDates ? '' : '<th>Date</th><th>Week No</th>'); }).join('') + '</tr></thead><tbody>' +
+    // One header row: "Availability %" etc. With dates on, each group is "Availability % | Date | Week No".
+    var table = '<div class="table-wrap tk-wrap"><table class="tk-table' + (S.tkDates ? ' tk-dated' : '') + '"><thead>' +
+      '<tr><th>Task Category</th><th>No</th><th class="tk-t">Task</th>' + ['Availability', 'Functionality', 'In use'].map(function (h) {
+        return '<th class="tk-grp tk-vh">' + h + ' %</th>' + (!S.tkDates ? '' : '<th class="tk-dh">Date</th><th class="tk-dh">Week No</th>');
+      }).join('') + '</tr></thead><tbody>' +
       (rows || '<tr><td colspan="12" class="tk-na">No tasks entered yet.</td></tr>') + '</tbody></table></div>';
 
     $('app').innerHTML = viewSwitch() + '<div class="tk' + (S.tkHide ? ' tk-hide' : '') + '">' + side +
+      (S.tkMode === 'map' ? '<section class="tk-mapbody"><div id="tm-host"></div></section></div>' :
       '<section class="card tk-body">' + head +
       '<div class="tk-tools"><label class="tk-switch"><input type="checkbox" data-tk-dates="1"' + (!S.tkDates ? '' : ' checked') + '> Show Date &amp; Week No</label><span class="tk-gap"></span><button type="button" class="btn" data-tk-all="1">Expand all</button><button type="button" class="btn" data-tk-all="0">Collapse all</button></div>' +
-      table + '</section></div>';
+      table + '</section></div>');
     bindViewSwitch();
+    if (S.tkMode === 'map') renderTaskMap($('tm-host'));
     var box = $('app').querySelector('.tk');
     var act = function (e) {
       if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
       var b = e.target.closest('[data-tk-dept]');
-      if (b) { if (e.type === 'keydown') return; S.tkDept = b.getAttribute('data-tk-dept'); renderTasks(); return; }
+      if (b) { if (e.type === 'keydown') return; S.tkDept = b.getAttribute('data-tk-dept'); S.tkMode = 'list'; renderTasks(); return; }
+      if (e.type === 'click' && e.target.closest('[data-tk-map]')) { S.tkMode = 'map'; renderTasks(); return; }
+      var fb = e.target.closest('[data-tk-filter]');
+      if (fb) { if (e.type === 'keydown') return; var fv = fb.getAttribute('data-tk-filter'); S.tkFilter = S.tkFilter === fv ? '' : fv; renderTasks(); return; }
       if (e.type === 'click' && e.target.closest('[data-tk-side]')) { S.tkHide = !S.tkHide; renderTasks(); return; }
       var all = e.target.closest('[data-tk-all]');
       if (all) {
         if (e.type === 'keydown') return;
-        var open = all.getAttribute('data-tk-all') === '1';
+        var open = all.getAttribute('data-tk-all') === '1'; S.tkFilter = '';
         d.mains.forEach(function (m, mi) { S.tkOpen[d.name + '|' + mi] = open; m.subs.forEach(function (s, si) { S.tkOpen[d.name + '|' + mi + '|' + si] = open; }); });
         renderTasks(); return;
       }
