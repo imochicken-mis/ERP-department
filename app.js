@@ -214,6 +214,28 @@ function getDocsCached_() {
     '🐞': '<rect x="7" y="8" width="10" height="12" rx="5"/><path d="M9 8a3 3 0 0 1 6 0M12 12v8M3 13h4M17 13h4M4 7l3 2M20 7l-3 2M4 19l3-2M20 19l-3-2"/>',
     '🗂️': '<path d="m12 3 9 5-9 5-9-5Z"/><path d="m3 13 9 5 9-5"/>'
   };
+  /* Line icon per department, picked from words in its name. */
+  var DEPT_ICONS = [
+    [/hatch/i, '<path d="M12 3c-3.5 0-6 5-6 9a6 6 0 0 0 12 0c0-4-2.5-9-6-9Z"/><path d="m8 13 2 1.5 2-2 2 2 2-1.5"/>'],
+    [/live bird|sales|dispatch/i, '<path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9-9-9Z"/><circle cx="8" cy="8" r="1.5"/>'],
+    [/breeder|broiler|farm|bird|poultry/i, '<path d="M4 20h16"/><path d="M6 20v-7l6-5 6 5v7"/><path d="M10 20v-4h4v4"/>'],
+    [/feed|mill/i, '<path d="M7 4h10l-1 3c2 2 3 5 3 8a5 5 0 0 1-5 5h-4a5 5 0 0 1-5-5c0-3 1-6 3-8Z"/><path d="M9 13h6"/>'],
+    [/buy ?back/i, '<path d="M4 9a8 8 0 0 1 14-3l2 2"/><path d="M20 4v4h-4"/><path d="M20 15a8 8 0 0 1-14 3l-2-2"/><path d="M4 20v-4h4"/>'],
+    [/audit/i, '<circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/><path d="m8.5 11 1.8 1.8 3.2-3.3"/>'],
+    [/security/i, '<path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6Z"/>'],
+    [/procur|purchas/i, '<circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M3 4h2l2.5 11h11l2-8H6.5"/>'],
+    [/store|warehouse|inventor/i, '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>'],
+    [/auto|vehicle|transport|fleet/i, '<path d="M3 16V7h11v9"/><path d="M14 10h4l3 3v3h-7"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>'],
+    [/financ|account/i, '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M7 9.5v5M17 9.5v5"/>'],
+    [/\bhr\b|human|people/i, '<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.3"/><path d="M16 14a5 5 0 0 1 5 5"/>'],
+    [/\bit\b|\bmis\b|technolog/i, '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'],
+    [/process|plant|factory|production/i, '<path d="M3 20V10l5 3V10l5 3V6h4l2 14Z"/>'],
+    [/quality|\bqa\b|lab/i, '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>']
+  ];
+  function deptIcon(name) {
+    var hit = DEPT_ICONS.filter(function (r) { return r[0].test(name); })[0];
+    return '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (hit ? hit[1] : LINE_ICONS['🏢']) + '</svg>';
+  }
   function icon(e, size) {
     return LINE_ICONS[e] ? '<svg class="ic" viewBox="0 0 24 24" width="' + (size || 18) + '" height="' + (size || 18) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + LINE_ICONS[e] + '</svg>' : e;
   }
@@ -946,7 +968,22 @@ function getDocsCached_() {
     return '<div class="x-viewbar"><div class="toggle" id="x-view" role="group" aria-label="Executive Summary view">' +
       '<button type="button" data-v="overview" aria-pressed="' + (S.sumView !== 'tasks') + '">' + icon('📊', 15) + ' Overview</button>' +
       '<button type="button" class="x-hl" data-v="tasks" aria-pressed="' + (S.sumView === 'tasks') + '">' + icon('🗂️', 15) + ' Task Breakdown</button></div>' +
-      (S.sumView !== 'tasks' ? '<button type="button" class="x-hint"><span aria-hidden="true">←</span> View each department&#39;s Main, Sub &amp; Final tasks</button>' : '') + '</div>';
+      (S.sumView !== 'tasks' ? '<button type="button" class="x-hint"><span aria-hidden="true">←</span> View each department&#39;s Main, Sub &amp; Final tasks</button>' : S.tkHide ? allDeptStrip() : '') + '</div>';
+  }
+  /* Task Breakdown: one overall progress (average of every department) on the right of the view bar. */
+  function allDeptStrip() {
+    var ds = S.tasks || [];
+    var vals = ds.map(function (x) {
+      var p = numOf(x.progress);
+      if (p === null) { var v = [numOf(x.a), numOf(x.f), numOf(x.u)].filter(function (y) { return y !== null; }); p = v.length ? v.reduce(function (a, b) { return a + b; }, 0) / v.length : null; }
+      return p;
+    }).filter(isNum);
+    if (!vals.length) return '';
+    var avg = vals.reduce(function (a, b) { return a + b; }, 0) / vals.length, z = level(avg);
+    var col = avg >= 90 ? '#16a34a' : avg >= 50 ? '#f59e0b' : '#ef4444', w = Math.max(0, Math.min(100, avg));
+    return '<div class="x-allp ' + (z ? z.cls : '') + '" style="--z:' + col + '" title="Average Department Progress of ' + vals.length + ' departments">' +
+      '<span class="x-allp-l">Overall Departments Progress</span>' +
+      '<i class="x-allp-bar"><s style="width:' + Math.max(2, w) + '%"></s><u style="left:' + w + '%"></u></i><b>' + Math.round(avg) + '%</b></div>';
   }
   /* Has this viewer opened Task Breakdown before? (hides the pointer hint once they have) */
   function tkSeen(set) {
@@ -1157,19 +1194,63 @@ function getDocsCached_() {
       '<button type="button" class="tk-dept tk-mapbtn" data-tk-map="1" aria-pressed="' + (S.tkMode === 'map') + '" title="Map of every department&#39;s tasks">' + icon('🧭', 17) + '<span class="tk-dn">All departments map</span></button>' +
       depts.map(function (x) {
         var p = deptPct(x);
-        return '<button type="button" class="tk-dept" data-tk-dept="' + esc(x.name) + '" aria-pressed="' + (S.tkMode !== 'map' && x === d) + '">' +
+        return '<button type="button" class="tk-dept tk-dept3" data-tk-dept="' + esc(x.name) + '" aria-pressed="' + (S.tkMode !== 'map' && x === d) + '" title="' + esc(x.name) + '">' +
           '<span class="tk-dn">' + esc(x.name) + '</span><span class="tk-dp">' + pct(p) + '</span>' + zMeter(p) + '</button>';
       }).join('') + '</div></aside>';
+    /* One gauge on top: average progress of every department. */
+    var allP = depts.map(deptPct).filter(isNum);
+    var avgP = allP.length ? allP.reduce(function (a, b) { return a + b; }, 0) / allP.length : null;
+    var gz = level(avgP), gn = isNum(avgP) ? Math.max(0, Math.min(100, avgP)) : 0;
+    var garc = function (r) { return 'M' + (110 - r) + ' 108 A' + r + ' ' + r + ' 0 0 1 ' + (110 + r) + ' 108'; };
+    var gband = function (cls, a, b) { return '<path class="' + cls + '" d="' + garc(98) + '" pathLength="100" fill="none" stroke="var(--z)" stroke-width="4" stroke-dasharray="' + (b - a) + ' 100" stroke-dashoffset="' + (-a) + '"/>'; };
+    var gauge = '<div class="tk-allg"><div class="x-gauge ' + (gz ? gz.cls : '') + '"><svg viewBox="0 0 220 122" role="img" aria-label="All departments average ' + pct(avgP) + '">' +
+      gband('z-risk', 0, 49.4) + gband('z-adopt', 50, 89.4) + gband('z-live', 90, 100) +
+      '<path d="' + garc(82) + '" fill="none" stroke="var(--track)" stroke-width="16" stroke-linecap="round"/>' +
+      (gn > 0 ? '<path class="g-val" d="' + garc(82) + '" pathLength="100" fill="none" stroke="var(--z)" stroke-width="16" stroke-linecap="round" stroke-dasharray="' + gn + ' 100"/>' : '') +
+      '<text x="12" y="121" text-anchor="middle">0</text><text x="208" y="121" text-anchor="middle">100</text></svg>' +
+      '<div class="x-gnum"><span class="x-big">' + pct(avgP === null ? null : Math.round(avgP)) + '</span></div></div>' +
+      '<div class="tk-allcap">Overall Departments Progress</div></div>';
+    side = side.replace('<div class="tk-list">', gauge + '<div class="tk-list">');
+    if (S.tkHide) {
+      var rz = level(avgP);
+      var rail = '<div class="tk-rail"><div class="tk-railavg ' + (rz ? rz.cls : '') + '" data-tip="All departments average ' + pct(avgP === null ? null : Math.round(avgP)) + '" style="--p:' + gn + '"><b>' + (avgP === null ? '–' : Math.round(avgP)) + '</b></div>' +
+        depts.map(function (x) {
+          var p = deptPct(x), z = level(p);
+          return '<button type="button" class="tk-ricon ' + (z ? z.cls : '') + '" data-tk-dept="' + esc(x.name) + '" aria-pressed="' + (S.tkMode !== 'map' && x === d) + '" aria-label="' + esc(x.name) + '" data-tip="' + esc(x.name) + ' · ' + pct(p === null ? null : Math.round(p)) + '">' + deptIcon(x.name) + '<i></i></button>';
+        }).join('') + '</div>';
+      side = side.replace('<div class="tk-list">', rail + '<div class="tk-list">');
+    }
 
     var pill = function (label, v, tone) { return '<div class="tk-pill tone-' + tone + '"><span>' + label + '</span><b>' + esc(v || '–') + '</b></div>'; };
     var nSub = 0, nFin = 0;
     d.mains.forEach(function (m) { nSub += m.subs.length; m.subs.forEach(function (s) { nFin += s.finals.length; }); });
-    var head = '<div class="tk-head"><div><div class="x-lab">Department</div><h2>' + esc(d.name) + '</h2>' +
-      '<p>HOD: <b>' + esc(d.hod || '–') + '</b></p><div class="tk-chips" role="group" aria-label="Show only">' +
-        [['', 'All tasks', ''], ['main', d.mains.length, 'main'], ['sub', nSub, 'sub'], ['final', nFin, 'final']].map(function (c) {
+    /* Header (v2): name block · progress + rank card · three metric cards. */
+    var me = deptPct(d), meR = isNum(me) ? Math.round(me) : null;
+    var sorted = depts.map(deptPct).filter(isNum).sort(function (a, b) { return b - a; });
+    var rank = isNum(me) ? sorted.indexOf(me) + 1 : null, diff = isNum(me) ? Math.round(me - (avgP || 0)) : null;
+    var dcls = diff > 0 ? 'up' : diff < 0 ? 'down' : 'eq';
+    var dtxt = diff === null ? '' : diff === 0 ? 'Same as average' : Math.abs(diff) + ' pts ' + (diff > 0 ? 'above' : 'below') + ' average';
+    var bar = function (v) { var n = numOf(v); return '<i class="hd-bar"><s style="width:' + (n === null ? 0 : Math.max(2, Math.min(100, n))) + '%"></s></i>'; };
+    var SVG = function (p) { return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + p + '</svg>'; };
+    var metric = function (cls, label, v, ic) {
+      return '<div class="hd-m ' + cls + '"><span class="hd-mi">' + SVG(ic) + '</span><div class="hd-mt"><span>' + label + '</span><b>' + esc(v || '–') + '</b></div>' + bar(v) + '</div>';
+    };
+    var head = '<div class="tk-head hd">' +
+      '<div class="hd-id"><div class="hd-crumb">ERP Implementation / <b>Task Breakdown</b></div>' +
+        '<div class="hd-name"><span class="hd-ic">' + deptIcon(d.name) + '</span><div><h2>' + esc(d.name) + '</h2><p title="HOD: ' + esc(d.hod || '–') + '">HOD: <b>' + esc(d.hod || '–') + '</b></p></div></div>' +
+        '<div class="tk-chips" role="group" aria-label="Show only">' +
+        [['', 'All Tasks', ''], ['main', d.mains.length, 'Main'], ['sub', nSub, 'Sub'], ['final', nFin, 'Final']].map(function (c) {
           return '<button type="button" class="tk-chip tk-chip-' + (c[0] || 'all') + '" data-tk-filter="' + c[0] + '" aria-pressed="' + ((S.tkFilter || '') === c[0]) + '">' + (c[0] ? '<b>' + c[1] + '</b> ' + c[2] : c[1]) + '</button>';
         }).join('') + '</div></div>' +
-      '<div class="tk-pills">' + pill('Department Progress', d.progress || pct(deptPct(d)), 'blue') + pill('Availability', d.a, 'teal') + pill('Functionality', d.f, 'amber') + pill('In use', d.u, 'green') + '</div></div>';
+      '<div class="hd-prog"><div class="hd-pl"><span class="hd-lab">Department Progress</span><b class="hd-big">' + pct(meR) + '</b>' + bar(me) +
+        '<small>Overall Departments Progress: ' + pct(avgP === null ? null : Math.round(avgP)) + '</small></div>' +
+        (rank ? '<div class="hd-pr"><div class="hd-rank"><span>#</span>' + rank + '<em>/ ' + sorted.length + ' Departments</em></div><span class="hd-diff ' + dcls + '">' + (diff > 0 ? '▲ ' : diff < 0 ? '▼ ' : '') + dtxt + '</span></div>' : '') +
+      '</div>' +
+      '<div class="hd-ms">' +
+        metric('m-a', 'Availability', d.a, '<path d="m12 3 9 5-9 5-9-5Z"/><path d="m3 13 9 5 9-5"/>') +
+        metric('m-f', 'Functionality', d.f, '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>') +
+        metric('m-u', 'In Use', d.u, '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>') +
+      '</div></div>';
 
     var dw = function (v) { return !S.tkDates ? '' : '<td class="tk-d">' + esc(v.date) + '</td><td class="tk-w">' + esc(v.week) + '</td>'; };
     var pctCell = function (v) {
@@ -1191,7 +1272,7 @@ function getDocsCached_() {
       });
     });
     else d.mains.forEach(function (m, mi) {
-      var mk = d.name + '|' + mi, mOpen = S.tkOpen[mk] !== false;
+      var mk = d.name + '|' + mi, mOpen = S.tkOpen[mk] === true;
       rows += '<tr class="tk-main" data-tk-key="' + esc(mk) + '" tabindex="0" aria-expanded="' + mOpen + '"><td><span class="tk-car">' + (mOpen ? '▾' : '▸') + '</span>Main Task</td><td>' + esc(m.no) + '</td><td class="tk-t">' + esc(m.task) + '</td>' + m.vals.map(pctCell).join('') + '</tr>';
       if (!mOpen) return;
       m.subs.forEach(function (s, si) {
@@ -1212,7 +1293,7 @@ function getDocsCached_() {
     $('app').innerHTML = viewSwitch() + '<div class="tk' + (S.tkHide ? ' tk-hide' : '') + '">' + side +
       (S.tkMode === 'map' ? '<section class="tk-mapbody"><div id="tm-host"></div></section></div>' :
       '<section class="card tk-body">' + head +
-      '<div class="tk-tools"><label class="tk-switch"><input type="checkbox" data-tk-dates="1"' + (!S.tkDates ? '' : ' checked') + '> Show Date &amp; Week No</label><span class="tk-gap"></span><button type="button" class="btn" data-tk-all="1">Expand all</button><button type="button" class="btn" data-tk-all="0">Collapse all</button></div>' +
+      '<div class="tk-tools"><label class="tk-switch"><input type="checkbox" data-tk-dates="1"' + (!S.tkDates ? '' : ' checked') + '> Show Date &amp; Week No</label><span class="tk-gap"></span><button type="button" class="btn" data-tk-all="1"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg> Expand all</button><button type="button" class="btn" data-tk-all="0"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg> Collapse all</button></div>' +
       table + '</section></div>');
     bindViewSwitch();
     if (S.tkMode === 'map') renderTaskMap($('tm-host'));

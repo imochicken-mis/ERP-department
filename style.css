@@ -1044,3 +1044,227 @@ tr[aria-expanded]:hover td { filter: none; background-image: linear-gradient(0de
   .wrap:has(.tk) .tk-mapbody .tm .dm-view { flex: 1; height: auto; min-height: 0; }
   .wrap:has(.tk) .footer { margin-top: 8px; flex: none; }
 }
+
+/* ===== Task Breakdown: dark-mode colours ===== */
+:root[data-theme="dark"] .tk-table thead th { background: #1c2440; box-shadow: 0 -6px 0 #1c2440, 0 1px 0 #1c2440; }
+:root[data-theme="dark"] .tk-main td { background: linear-gradient(0deg, rgba(245,165,36,.09), rgba(245,165,36,.09)), var(--surface-2); border-color: rgba(245,165,36,.28) !important; color: #fff; }
+:root[data-theme="dark"] .tk-sub td { background: linear-gradient(0deg, rgba(96,165,250,.07), rgba(96,165,250,.07)), var(--surface); border-color: rgba(96,165,250,.22) !important; }
+:root[data-theme="dark"] .tk-fin td { background: var(--surface); border-color: var(--border) !important; }
+:root[data-theme="dark"] .tk-fin:hover td { background: var(--surface-2); }
+:root[data-theme="dark"] .tk-pill { background: var(--surface-2); }
+:root[data-theme="dark"] .tk-tick { border-color: #3a4570; }
+:root[data-theme="dark"] .tk-chip { background: var(--surface-2); }
+
+/* ===== Departments panel: all departments in one view, each with a mini gauge + A/F/U bars ===== */
+.tk-side .tone-a { --c: var(--s3); } .tk-side .tone-f { --c: #e08a00; } .tk-side .tone-u { --c: var(--good); }
+.tk-list { gap: 2px; }
+.tk-dept.tk-dept2 { grid-template-columns: 44px 1fr 62px; gap: 0 10px; padding: 4px 8px; min-height: 0; }
+.tk-dept2 .tk-dn { font-size: 13px; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-mg { width: 44px; height: 26px; display: block; }
+.tk-mg text { font: 700 11px/1 inherit; font-family: inherit; fill: var(--ink); }
+.tk-mbs { display: flex; flex-direction: column; gap: 3px; }
+.tk-mb { display: block; height: 4px; border-radius: 3px; background: var(--track); overflow: hidden; }
+.tk-mb s { display: block; height: 100%; background: var(--c); border-radius: 3px; text-decoration: none; }
+.tk-key { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 6px 8px 0; margin-top: auto; font-size: 11px; color: var(--muted); }
+.tk-key span { display: inline-flex; align-items: center; gap: 5px; }
+.tk-key i { width: 10px; height: 4px; border-radius: 2px; background: var(--c); }
+.tk-mapbtn { padding: 6px 10px; }
+@media (min-width: 1101px) {
+  .wrap:has(.tk) .tk-list { overflow-y: auto; display: flex; flex-direction: column; }
+  .wrap:has(.tk) .tk-dept2 { flex: 1 1 0; max-height: 46px; min-height: 32px; }
+}
+.tk-dept2 .tk-dn { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 12.5px; }
+.tk-dept.tk-dept2 { grid-template-columns: 40px 1fr 46px; gap: 0 8px; }
+.tk-mg { width: 40px; height: 24px; }
+.tk-list { gap: 1px; }
+.tk-dept.tk-dept2 { padding: 2px 8px; }
+.tk-dept2 .tk-dn { line-height: 1.15; }
+.tk-key { padding-top: 4px; }
+@media (min-width: 1101px) { .wrap:has(.tk) .tk-dept2 { min-height: 28px; } }
+@media (min-width: 1101px) { .tk:not(.tk-hide) { grid-template-columns: 290px minmax(0, 1fr); } }
+
+/* ===== Departments panel v3: one average gauge on top + plain compact rows ===== */
+.tk-allg { text-align: center; padding: 4px 6px 8px; border-bottom: 1px solid var(--border); }
+.tk-allg .x-gauge { position: relative; width: 170px; margin: 0 auto; }
+.tk-allg .x-gauge svg { width: 100%; height: auto; display: block; }
+.tk-allg .x-gnum { position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; }
+.tk-allg .x-big { font-size: 28px; font-weight: 800; }
+.tk-allcap { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.tk-dept.tk-dept3 { padding: 3px 10px; gap: 0 8px; }
+.tk-dept3 .tk-dn { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-dept3 .tk-dp { font-size: 12px; }
+.tk-dept3 .meter { height: 3px; margin-top: 2px; }
+@media (min-width: 1101px) { .wrap:has(.tk) .tk-dept3 { flex: 1 1 0; min-height: 26px; max-height: 44px; } }
+.tk-allg .x-gauge { width: 140px; }
+.tk-allg .x-big { font-size: 24px; }
+.tk-allg { padding: 2px 6px 6px; }
+/* Collapsed panel: hide the gauge there; it moves into the department header instead. */
+.tk.tk-hide .tk-side .tk-allg { display: none; }
+.tk-allg-head { border: 0; padding: 0; margin: 0 auto; align-self: center; }
+.tk.tk-hide .tk-side .tk-list { display: none !important; }
+
+/* ===== Collapsed departments panel: icon rail with hover names ===== */
+.tk-allg-head { display: none; }
+.tk.tk-hide .tk-side { overflow: visible; }
+.tk-rail { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 10px; }
+.tk-railavg { --z: var(--s1); width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 6px; position: relative;
+  background: radial-gradient(closest-side, var(--surface) 76%, transparent 78% 100%), conic-gradient(var(--z) calc(var(--p) * 1%), var(--track) 0); }
+.tk-railavg b { font-size: 11px; font-weight: 800; color: var(--ink); }
+.tk-ricon { --z: var(--track); position: relative; width: 36px; height: 34px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--ink-2); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.tk-ricon:hover { background: var(--surface-2); color: var(--s1); }
+.tk-ricon[aria-pressed="true"] { background: var(--accent-wash); border-color: var(--s1); color: var(--s1); }
+.tk-ricon i { position: absolute; right: 3px; bottom: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--z); }
+[data-tip] { position: relative; }
+.tk-rail [data-tip]:hover::after { content: attr(data-tip); position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%); white-space: nowrap; z-index: 50;
+  background: #0f172a; color: #fff; font: 600 12px/1 Inter, system-ui, sans-serif; padding: 7px 10px; border-radius: 7px; box-shadow: 0 6px 18px rgba(0,0,0,.25); pointer-events: none; }
+:root[data-theme="dark"] .tk-rail [data-tip]:hover::after { background: #e2e8f0; color: #0f172a; }
+.tk-rail { gap: 2px; margin-top: 8px; }
+.tk-ricon { height: 30px; width: 34px; }
+.tk-railavg { width: 34px; height: 34px; margin-bottom: 4px; }
+
+/* ===== Department header: rank among all departments ===== */
+.tk-rank { display: flex; align-items: center; gap: 14px; margin: 0 auto; align-self: center; padding: 10px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); }
+.tk-rank-n { font-size: 40px; font-weight: 800; line-height: 1; color: var(--s1); letter-spacing: -1px; }
+.tk-rank-n span { font-size: 22px; opacity: .7; margin-right: 1px; }
+.tk-rank-t { display: flex; flex-direction: column; gap: 3px; padding-left: 14px; border-left: 1px solid var(--border); }
+.tk-rank-t b { font-size: 13px; color: var(--ink); }
+.tk-rank-d { font-size: 12.5px; font-weight: 700; }
+.tk-rank-d.up { color: var(--good); } .tk-rank-d.down { color: var(--crit); } .tk-rank-d.eq { color: var(--muted); }
+.tk-rank-t small { font-size: 11.5px; color: var(--muted); }
+@media (max-width: 1250px) { .tk-rank { margin: 0; } }
+@media (min-width: 1101px) { .tk-head { flex-wrap: nowrap; } .tk-head > div:first-child { min-width: 0; } }
+@media (max-width: 1600px) { .tk-rank { padding: 8px 12px; gap: 10px; } .tk-rank-n { font-size: 32px; } .tk-rank-t { padding-left: 10px; } .tk-rank-t small { display: none; } .tk-pill { min-width: 0; } }
+/* Panel collapsed: the all-departments gauge sits inside the rank box. */
+.tk-allg.tk-allg-rank { border: 0; border-left: 1px solid var(--border); padding: 0 0 0 14px; margin: 0; }
+.tk-allg-rank .x-gauge { width: 104px; }
+.tk-allg-rank .x-big { font-size: 18px; }
+.tk-allg-rank .tk-allcap { font-size: 10.5px; margin-top: 0; }
+.tk-rank:has(.tk-allg-rank) .tk-rank-t small { display: none; }
+
+/* ===== Department header v2 (name · progress + rank · metric cards) ===== */
+.tk-head.hd { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.25fr) minmax(0, 1.9fr); gap: 18px; align-items: center; }
+.hd-crumb { font-size: 13px; color: var(--muted); margin-bottom: 6px; } .hd-crumb b { color: var(--ink-2); }
+.hd-name { display: flex; align-items: center; gap: 12px; }
+.hd-ic { width: 52px; height: 52px; flex: none; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); display: grid; place-items: center; color: var(--ink-2); }
+.hd-ic svg { width: 28px; height: 28px; }
+.hd-name h2 { margin: 0; font-size: 28px; line-height: 1.15; }
+.hd-name p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.hd-name p b { color: var(--ink-2); }
+.hd .tk-chips { margin-top: 12px; }
+.hd-bar { display: block; height: 10px; border-radius: 99px; background: var(--track); overflow: hidden; }
+.hd-bar s { display: block; height: 100%; border-radius: 99px; background: var(--c, var(--s1)); }
+.hd-prog { display: flex; align-items: center; gap: 22px; padding: 16px 22px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: 0 2px 10px rgba(15,23,42,.05); }
+.hd-pl { flex: 1.2; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.hd-lab { font-size: 15px; font-weight: 700; color: var(--ink); }
+.hd-big { font-size: 38px; font-weight: 800; color: var(--s1); line-height: 1; }
+.hd-pl small { font-size: 12.5px; color: var(--muted); }
+.hd-pr { flex: 1; display: flex; flex-direction: column; gap: 10px; padding-left: 22px; border-left: 1px solid var(--border); }
+.hd-rank { font-size: 38px; font-weight: 800; line-height: 1; color: var(--ink); white-space: nowrap; }
+.hd-rank span { font-size: 26px; margin-right: 1px; }
+.hd-rank em { font-style: normal; font-size: 14px; font-weight: 700; margin-left: 6px; vertical-align: 8px; }
+.hd-diff { align-self: flex-start; font-size: 14px; font-weight: 700; padding: 6px 12px; border-radius: 8px; white-space: nowrap; }
+.hd-diff.down { color: #dc2626; background: rgba(220,38,38,.1); }
+.hd-diff.up { color: #16a34a; background: rgba(22,163,74,.12); }
+.hd-diff.eq { color: var(--muted); background: var(--surface-2); }
+.hd-ms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.hd-m { --c: #0f9488; display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: center; padding: 14px 14px 16px; border-radius: 14px; border: 1px solid var(--border); border-top: 3px solid var(--c); background: var(--surface); box-shadow: 0 2px 10px rgba(15,23,42,.05); }
+.hd-m.m-f { --c: #f97316; } .hd-m.m-u { --c: #2563eb; }
+.hd-mi { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); }
+.hd-mt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hd-mt span { font-size: 14px; font-weight: 600; color: var(--ink); }
+.hd-mt b { font-size: 24px; font-weight: 800; color: var(--c); line-height: 1.1; }
+.hd-m .hd-bar { grid-column: 1 / -1; height: 9px; }
+.tk-tools .btn svg { vertical-align: -2px; margin-right: 4px; }
+:root[data-theme="dark"] .hd-prog, :root[data-theme="dark"] .hd-m { box-shadow: none; }
+:root[data-theme="dark"] .hd-diff.down { color: #f87171; background: rgba(248,113,113,.14); }
+:root[data-theme="dark"] .hd-diff.up { color: #4ade80; background: rgba(74,222,128,.12); }
+@media (max-width: 1500px) {
+  .tk-head.hd { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+  .hd-ms { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) { .tk-head.hd { grid-template-columns: 1fr; } .hd-prog { flex-direction: column; align-items: stretch; } .hd-pr { border-left: 0; padding-left: 0; } }
+/* Header v2 polish: even heights, no cramped wrapping. */
+.tk-head.hd { grid-template-columns: minmax(240px, 1fr) minmax(400px, auto) minmax(0, 1.55fr); align-items: stretch; gap: 14px; }
+.hd-id { align-self: center; min-width: 0; }
+.hd-name h2 { font-size: 26px; }
+.hd-name p { font-size: 12.5px; line-height: 1.35; }
+.hd-prog { padding: 14px 20px; gap: 18px; border-radius: 14px; }
+.hd-lab, .hd-pl small, .hd-rank, .hd-diff { white-space: nowrap; }
+.hd-lab { font-size: 14px; }
+.hd-big, .hd-rank { font-size: 34px; }
+.hd-pl { min-width: 170px; }
+.hd-pr { padding-left: 18px; gap: 8px; }
+.hd-diff { font-size: 13px; padding: 5px 10px; }
+.hd-ms { align-items: stretch; gap: 10px; }
+.hd-m { align-content: center; padding: 12px 14px; border-radius: 14px; }
+.hd-mt b { font-size: 22px; }
+.hd-mi { width: 36px; height: 36px; }
+@media (max-width: 1500px) { .tk-head.hd { grid-template-columns: minmax(0, 1fr) auto; } }
+/* Header v2: smaller, more compact cards. */
+.tk-head.hd { align-items: center; gap: 12px; }
+.hd-prog { padding: 10px 16px; gap: 14px; border-radius: 12px; }
+.hd-lab { font-size: 13px; }
+.hd-big, .hd-rank { font-size: 26px; }
+.hd-rank span { font-size: 19px; }
+.hd-rank em { font-size: 12.5px; vertical-align: 5px; }
+.hd-pl { gap: 4px; min-width: 150px; }
+.hd-pl small { font-size: 11.5px; }
+.hd-pr { padding-left: 14px; gap: 6px; }
+.hd-diff { font-size: 12px; padding: 4px 8px; border-radius: 6px; }
+.hd-bar { height: 7px; }
+.hd-ms { align-items: center; gap: 10px; }
+.hd-m { padding: 9px 12px 11px; gap: 8px 10px; border-radius: 12px; }
+.hd-mi { width: 30px; height: 30px; }
+.hd-mi svg { width: 17px; height: 17px; }
+.hd-mt span { font-size: 12.5px; }
+.hd-mt b { font-size: 19px; }
+.hd-m .hd-bar { height: 6px; }
+/* Header v2: HOD on one line (full text on hover), lighter name block. */
+.tk-head.hd { grid-template-columns: minmax(300px, 1.1fr) minmax(380px, auto) minmax(0, 1.5fr); }
+.hd-name { gap: 10px; min-width: 0; }
+.hd-name > div { min-width: 0; }
+.hd-name p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hd-ic { width: 42px; height: 42px; border-radius: 10px; }
+.hd-ic svg { width: 22px; height: 22px; }
+.hd-name h2 { font-size: 23px; }
+.hd-crumb { font-size: 12px; margin-bottom: 4px; }
+.hd .tk-chips { margin-top: 8px; }
+/* Task Breakdown view bar: overall progress of all departments (right side). */
+.x-allp { --z: var(--s1); margin-left: auto; display: flex; align-items: center; gap: 12px; padding: 6px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.x-allp-l { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.x-allp-l small { font-weight: 500; color: var(--muted); font-size: 12px; }
+.x-allp-bar { display: block; width: 220px; height: 8px; border-radius: 99px; background: var(--track); overflow: hidden; }
+.x-allp-bar s { display: block; height: 100%; border-radius: 99px; background: var(--z); }
+.x-allp b { font-size: 18px; font-weight: 800; color: var(--z); min-width: 44px; text-align: right; }
+@media (max-width: 800px) { .x-allp-bar { width: 90px; } .x-allp-l small { display: none; } }
+/* Overall progress strip (only when the departments panel is collapsed): highlighted, colour-scaled. */
+.x-allp { position: relative; padding: 8px 18px; gap: 14px; border: 1.5px solid color-mix(in srgb, var(--z) 55%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--z) 14%, var(--surface)), var(--surface) 70%);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--z) 22%, transparent); }
+.x-allp::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--z); box-shadow: 0 0 0 4px color-mix(in srgb, var(--z) 25%, transparent); animation: xallp 1.8s ease-in-out infinite; }
+@keyframes xallp { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--z) 8%, transparent); } }
+.x-allp-l { font-size: 14px; }
+.x-allp-bar { position: relative; width: 260px; height: 10px; overflow: visible;
+  background: linear-gradient(90deg, rgba(239,68,68,.22) 0 50%, rgba(245,158,11,.22) 50% 90%, rgba(22,163,74,.22) 90%); }
+.x-allp-bar s { background: linear-gradient(90deg, #ef4444, var(--z)); }
+.x-allp-bar u { position: absolute; top: -4px; width: 3px; height: 18px; margin-left: -1.5px; border-radius: 2px; background: var(--ink); }
+.x-allp b { font-size: 22px; color: var(--z); }
+@media (prefers-reduced-motion: reduce) { .x-allp::before { animation: none; } }
+/* HOD: allow a second line when a department has several HODs (most fit on one). */
+.hd-name p { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.4; }
+/* HOD on a single line: slightly smaller text + a little more room for the name column. */
+.tk-head.hd { grid-template-columns: minmax(370px, 1.2fr) minmax(360px, auto) minmax(0, 1.5fr); }
+.hd-name p { white-space: nowrap; font-size: 12px; letter-spacing: -.1px; }
+.hd-name p b { font-weight: 600; }
+@media (max-width: 1500px) { .tk-head.hd { grid-template-columns: minmax(370px, 1fr) auto; } }
+/* Collapsed rail: icon zooms on hover; name tooltip is larger and sits above the task card. */
+.tk.tk-hide .tk-side { position: relative; z-index: 20; }
+.tk-ricon { transition: transform .18s ease, background .18s ease, color .18s ease; }
+.tk-ricon:hover, .tk-ricon:focus-visible { transform: scale(1.3); z-index: 2; }
+.tk-ricon:hover svg { stroke-width: 2; }
+.tk-railavg { transition: transform .18s ease; }
+.tk-railavg:hover { transform: scale(1.15); }
+.tk-rail [data-tip]:hover::after, .tk-rail [data-tip]:focus-visible::after {
+  content: attr(data-tip); font-size: 14px; font-weight: 700; padding: 9px 14px; border-radius: 9px; left: calc(100% + 12px);
+  transform: translateY(-50%) scale(calc(1 / 1.3)); transform-origin: left center; z-index: 60; }
+.tk-railavg[data-tip]:hover::after { transform: translateY(-50%) scale(calc(1 / 1.15)); }
