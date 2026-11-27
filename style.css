@@ -967,3 +967,80 @@ tr[aria-expanded]:hover td { filter: none; background-image: linear-gradient(0de
 .t-emoji .ic { display: block; }
 .x-fig .t-emoji { background: color-mix(in srgb, var(--tone, var(--s1)) 14%, transparent); }
 #x-view button .ic { vertical-align: -3px; margin-right: 3px; }
+
+/* ===== Task Breakdown header: metric cards in fixed colours + main/sub/final filter chips ===== */
+.tk-pill { border-top-color: var(--tone) !important; }
+.tk-pill b { color: var(--tone); }
+.tk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tk-chip { font: inherit; font-size: 12.5px; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; padding: 3px 12px; cursor: pointer; }
+.tk-chip b { color: var(--ink); }
+.tk-chip:hover { border-color: var(--s1); color: var(--s1); }
+.tk-chip-main { box-shadow: inset 3px 0 0 var(--warn); }
+.tk-chip-sub { box-shadow: inset 3px 0 0 var(--s1); }
+.tk-chip-final { box-shadow: inset 3px 0 0 var(--axis); }
+.tk-chip[aria-pressed="true"] { background: var(--s1); border-color: var(--s1); color: #fff; box-shadow: none; }
+.tk-chip[aria-pressed="true"] b { color: #fff; }
+
+/* ===================== Task map (all departments) ===================== */
+.tm-top { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+.tm-note { font-size: 12.5px; color: var(--muted); }
+.tm .dm-view { height: calc(100vh - 250px); min-height: 420px; }
+.tm .dm-node { gap: 9px; }
+.tm-root { background: var(--hero); color: #fff; border: 0; }
+.tm-root .dm-txt small { color: rgba(255,255,255,.7); }
+.tm-root .dm-tog { background: rgba(255,255,255,.2); color: #fff; }
+.tm-dept { border-left: 3px solid var(--s1); }
+.tm-main { border-left: 3px solid var(--s2); }
+.tm-sub { border-left: 3px solid var(--s3); }
+.tm-fin { background: var(--surface-2); }
+.tm-p { flex: none; font-style: normal; font-size: 12px; font-weight: 700; color: var(--ink); }
+.tm-ticks { display: flex; gap: 3px; flex: none; }
+.tm-ticks i { width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 9px; font-weight: 700; border: 1.5px solid var(--axis); color: var(--muted); }
+.tm-ticks i.on { background: var(--good); border-color: var(--good); color: #fff; }
+
+/* ===== "All departments map" entry at the top of the Departments panel ===== */
+.tk-mapbtn { grid-template-columns: auto 1fr; align-items: center; gap: 8px; color: var(--s1); border: 1px dashed color-mix(in srgb, var(--s1) 50%, transparent); margin-bottom: 6px; }
+.tk-mapbtn .tk-dn { color: var(--s1); }
+.tk-mapbtn[aria-pressed="true"] { background: var(--s1); border: 1px solid var(--s1); }
+.tk-mapbtn[aria-pressed="true"] .tk-dn, .tk-mapbtn[aria-pressed="true"] .ic { color: #fff; }
+.tk-mapbody { min-width: 0; }
+.tk-mapbody .tm .dm-view { height: calc(100vh - 230px); }
+
+/* Fill the 6px row gap between the two header rows (the white line under Availability / Functionality / In use) */
+.tk-table thead tr:nth-child(2) th { box-shadow: 0 -6px 0 var(--brand); }
+
+/* ===== Task table header: one solid navy band, thin dividers only ===== */
+.tk-table th, .tk-table thead tr:nth-child(2) th { background: var(--brand); color: #fff; border-bottom: 0; }
+.tk-table thead tr:first-child th.tk-grp { border-bottom: 1px solid rgba(255,255,255,.14); }
+.tk-table thead tr:nth-child(2) th { color: rgba(255,255,255,.7); font-weight: 500; font-size: 11px; box-shadow: 0 -6px 0 var(--brand); }
+.tk-table thead th.tk-grp { border-left: 1px solid rgba(255,255,255,.14); }
+.tk-table thead tr:first-child th:first-child { border-radius: 10px 0 0 10px; }
+.tk-table thead tr:first-child th:last-child { border-radius: 0 10px 0 0; }
+.tk-table thead tr:nth-child(2) th:last-child { border-radius: 0 0 10px 0; }
+
+/* ===== Task table header: single row, three equal value columns, clean sticky scroll ===== */
+.tk-table { border-spacing: 0 6px; }
+.tk-table thead th { position: sticky; top: 0; z-index: 3; height: 42px; background: var(--brand); color: #fff; box-shadow: 0 -6px 0 var(--brand), 0 1px 0 var(--brand); border-radius: 0 !important; }
+.tk-table thead th:first-child { border-radius: 10px 0 0 10px !important; }
+.tk-table thead th:last-child { border-radius: 0 10px 10px 0 !important; }
+.tk-table th.tk-vh, .tk-table td.tk-v { width: 130px; min-width: 130px; max-width: 130px; }
+.tk-table th.tk-dh { color: rgba(255,255,255,.7); font-weight: 500; }
+.tk-wrap { padding-top: 0; }
+
+/* ===== Task Breakdown = exactly one screen (footer always visible); panel list and table scroll inside ===== */
+@media (min-width: 1101px) {
+  .wrap:has(.tk) { height: 100vh; display: flex; flex-direction: column; padding-bottom: 8px; }
+  .wrap:has(.tk) #app { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .wrap:has(.tk) .x-viewbar { flex: none; }
+  .wrap:has(.tk) .tk { flex: 1; min-height: 0; align-items: stretch; }
+  .wrap:has(.tk) .tk-side { position: static; display: flex; flex-direction: column; min-height: 0; }
+  .wrap:has(.tk) .tk-list { flex: 1; min-height: 0; max-height: none; }
+  .wrap:has(.tk) .tk-body { display: flex; flex-direction: column; min-height: 0; }
+  .wrap:has(.tk) .tk-head, .wrap:has(.tk) .tk-tools { flex: none; }
+  .wrap:has(.tk) .tk-wrap { flex: 1; min-height: 0; max-height: none; }
+  .wrap:has(.tk) .tk-mapbody { display: flex; flex-direction: column; min-height: 0; }
+  .wrap:has(.tk) #tm-host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .wrap:has(.tk) .tk-mapbody .tm { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .wrap:has(.tk) .tk-mapbody .tm .dm-view { flex: 1; height: auto; min-height: 0; }
+  .wrap:has(.tk) .footer { margin-top: 8px; flex: none; }
+}
