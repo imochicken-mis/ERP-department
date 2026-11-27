@@ -8,6 +8,7 @@
 
   var REFRESH_MS = 5 * 60 * 1000;          // the page re-reads the sheet every 5 minutes
   var S = { tab: 'summary', model: null, sel: 0, picked: false, sort: 'no', q: '', view: 'cards' };
+  try { S.tkDates = localStorage.getItem('erp.tkDates') === '1'; } catch (err) {}      // remembered Show Date & Week No choice
 
   /* Which column feeds which figure. Matched on the header text, so column order can change. */
   var DEFS = {
@@ -200,6 +201,22 @@ function getDocsCached_() {
     var good = opts.downIsGood ? d < 0 : d > 0;
     return '<span class="dpill"><span class="delta ' + (good ? 'good' : 'bad') + '">' + (d > 0 ? '▲ ' : '▼ ') + fmt(Math.abs(d), opts.dec || 0) + unit + '</span><span>' + vs + '</span></span>';
   }
+  /* Clean line icons used instead of emojis (stroke follows the card's colour). */
+  var LINE_ICONS = {
+    '🏢': '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 21v-4h6v4M8 7h2M14 7h2M8 11h2M14 11h2"/>',
+    '✅': '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16.5 9"/>',
+    '📊': '<path d="M4 20h16"/><rect x="6" y="11" width="3" height="7" rx="1"/><rect x="11" y="6" width="3" height="12" rx="1"/><rect x="16" y="13" width="3" height="5" rx="1"/>',
+    '🚨': '<path d="M10.3 4.2 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4M12 17h.01"/>',
+    '📄': '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+    '⚙️': '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="m8.5 10 2.2 2.2L15.5 7.5"/>',
+    '🧭': '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5Z"/>',
+    '📝': '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17Z"/><path d="M13.5 6.5l3 3M14 20h6"/>',
+    '🐞': '<rect x="7" y="8" width="10" height="12" rx="5"/><path d="M9 8a3 3 0 0 1 6 0M12 12v8M3 13h4M17 13h4M4 7l3 2M20 7l-3 2M4 19l3-2M20 19l-3-2"/>',
+    '🗂️': '<path d="m12 3 9 5-9 5-9-5Z"/><path d="m3 13 9 5 9-5"/>'
+  };
+  function icon(e, size) {
+    return LINE_ICONS[e] ? '<svg class="ic" viewBox="0 0 24 24" width="' + (size || 18) + '" height="' + (size || 18) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + LINE_ICONS[e] + '</svg>' : e;
+  }
   function meter(v, color) {
     var p = isNum(v) ? Math.max(0, Math.min(100, v)) : 0;
     return '<div class="meter"><i style="width:' + p + '%' + (color ? ';background:' + color : '') + '"></i></div>';
@@ -227,7 +244,7 @@ function getDocsCached_() {
       var best = -1;
       m.M.iAll[iAll.w].forEach(function (v, i) { if (isNum(v) && v > best) { best = v; topIssue = m.depts[i] + ' (' + fmt(v) + ')'; } });
     }
-    var head = function (label, emoji) { return '<div class="t-top"><div class="t-label">' + label + '</div><span class="t-emoji" aria-hidden="true">' + emoji + '</span></div>'; };
+    var head = function (label, emoji) { return '<div class="t-top"><div class="t-label">' + label + '</div><span class="t-emoji" aria-hidden="true">' + icon(emoji) + '</span></div>'; };
 
     /* Big number = what is completed; the total and everything else stays small. Week-on-week change is in %. */
     var tiles = [
@@ -861,7 +878,7 @@ function getDocsCached_() {
       '</section>';
 
     var fig = function (emoji, label, value, small, sub, delta, cls, tone, bar) {
-      return '<div class="card x-fig tone-' + (tone || 'blue') + '"><div class="t-top"><div class="x-lab">' + label + '</div><span class="t-emoji" aria-hidden="true">' + emoji + '</span></div>' +
+      return '<div class="card x-fig tone-' + (tone || 'blue') + '"><div class="t-top"><div class="x-lab">' + label + '</div><span class="t-emoji" aria-hidden="true">' + icon(emoji) + '</span></div>' +
         '<div class="x-val' + (cls ? ' ' + cls : '') + '">' + value + (small ? '<small>' + small + '</small>' : '') + '</div>' +
         (bar === undefined ? '' : meter(bar, 'var(--tone)')) +
         '<div class="x-sub">' + sub + '</div>' + (delta ? '<div class="x-d">' + delta + '</div>' : '') + '</div>';
@@ -908,13 +925,14 @@ function getDocsCached_() {
       mvRow('BA average', 'baAvg', '%') + mvRow('Reports completed', 'rPct', '%') + mvRow('Open issues', 'iOpen', '', true) +
       '</tbody></table></div></section>';
 
-    $('app').innerHTML = '<div class="x-sum"><div class="x-top">' + banner + figs + '</div>' +
+    $('app').innerHTML = viewSwitch() + '<div class="x-sum"><div class="x-top">' + banner + figs + '</div>' +
       '<section class="card x-card chart x-wide"><div class="x-chead"><div><div class="x-lab">Overall progress, week by week</div><p>Average of Availability, Functionality and In use across all departments.</p></div><div class="x-eta" id="eta"></div></div><div class="plot" id="c-overall"></div></section>' +
       moves +
       '<div class="x-main">' +
         '<section class="card x-card"><div class="x-lab">Department status</div><p>Click a row for the department\'s full detail.</p>' + matrix + '</section></div></div>' +
       (m.missing.length ? '<p class="note">Tab not found in the sheet: ' + esc(m.missing.join(', ')) + '. Its figures are shown as “–”.</p>' : '');
     drawOverall();
+    bindViewSwitch();
     if (animate) countUp();
     var open = function (e) {
       var tr = e.target.closest('tr[data-no]');
@@ -924,6 +942,165 @@ function getDocsCached_() {
     };
     $('app').querySelector('.x-table').addEventListener('click', open);
     $('app').querySelector('.x-table').addEventListener('keydown', open);
+  }
+
+  /* ================= Executive Summary > Task Breakdown (Dept Tasks + Dept Summary tabs) ================= */
+  function viewSwitch() {
+    return '<div class="x-viewbar"><div class="toggle" id="x-view" role="group" aria-label="Executive Summary view">' +
+      '<button type="button" data-v="overview" aria-pressed="' + (S.sumView !== 'tasks') + '">' + icon('📊', 15) + ' Overview</button>' +
+      '<button type="button" class="x-hl" data-v="tasks" aria-pressed="' + (S.sumView === 'tasks') + '">' + icon('🗂️', 15) + ' Task Breakdown</button></div>' +
+      (S.sumView !== 'tasks' ? '<button type="button" class="x-hint"><span aria-hidden="true">←</span> View each department&#39;s Main, Sub &amp; Final tasks</button>' : '') + '</div>';
+  }
+  /* Has this viewer opened Task Breakdown before? (hides the pointer hint once they have) */
+  function tkSeen(set) {
+    try { if (set) localStorage.setItem('erp.tkSeen', '1'); return localStorage.getItem('erp.tkSeen') === '1'; } catch (e) { return !!set; }
+  }
+  function bindViewSwitch() {
+    var hint = $('app').querySelector('.x-hint');
+    if (hint) hint.addEventListener('click', function () { S.sumView = 'tasks'; tkSeen(true); render(false); });
+    var el = $('x-view');
+    if (el) el.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-v]');
+      if (!b || b.getAttribute('data-v') === (S.sumView || 'overview')) return;
+      S.sumView = b.getAttribute('data-v');
+      if (S.sumView === 'tasks') tkSeen(true);
+      render(false);
+    });
+  }
+  /* Dept Tasks rows grouped per department into Main > Sub > Final. */
+  function taskModel(data) {
+    var t = data && data.deptTasks, sm = data && data.deptSummary;
+    if (!t || t.length < 2) return null;
+    var H = t[0].map(function (h) { return String(h).toLowerCase().trim(); });
+    var c = function (name) { return H.indexOf(name); };
+    var C = { dept: c('department'), cat: c('task category'), mt: c('m/t number'), st: c('s/t number'), ft: c('f/t number'), task: c('task') };
+    ['availability', 'functionality', 'in use'].forEach(function (k, i) {
+      var key = ['a', 'f', 'u'][i];
+      C[key] = c(k + ' %'); C[key + 'D'] = c(k + ' date'); C[key + 'W'] = c(k + ' week no');
+    });
+    var g = function (row, k) { return C[k] === undefined || C[k] < 0 ? '' : String(row[C[k]] || '').trim(); };
+    var depts = [], byName = {};
+    t.slice(1).forEach(function (row) {
+      var name = g(row, 'dept'); if (!name) return;
+      var d = byName[name];
+      if (!d) { d = byName[name] = { name: name, hod: '', progress: '', a: '', f: '', u: '', mains: [] }; depts.push(d); }
+      var cat = g(row, 'cat').toLowerCase();
+      var item = { task: g(row, 'task'), no: g(row, 'ft') || g(row, 'st') || g(row, 'mt'), vals: ['a', 'f', 'u'].map(function (k) { return { v: g(row, k), date: g(row, k + 'D'), week: g(row, k + 'W') }; }) };
+      var blank = function () { return { task: '', no: '', vals: [{}, {}, {}].map(function () { return { v: '', date: '', week: '' }; }) }; };
+      var main = d.mains[d.mains.length - 1];
+      if (/main/.test(cat)) { item.subs = []; d.mains.push(item); }
+      else if (/sub/.test(cat)) { if (!main) { main = blank(); main.subs = []; d.mains.push(main); } item.finals = []; main.subs.push(item); }
+      else if (/final/.test(cat)) {
+        if (!main) { main = blank(); main.subs = []; d.mains.push(main); }
+        var sub = main.subs[main.subs.length - 1];
+        if (!sub) { sub = blank(); sub.finals = []; main.subs.push(sub); }
+        sub.finals.push(item);
+      }
+    });
+    if (sm && sm.length > 1) {
+      var SH = sm[0].map(function (h) { return String(h).toLowerCase().trim(); });
+      sm.slice(1).forEach(function (row) {
+        var d = byName[String(row[SH.indexOf('department')] || '').trim()];
+        if (!d) return;
+        var s = function (n) { var i = SH.indexOf(n); return i < 0 ? '' : String(row[i] || '').trim(); };
+        d.hod = s('hod name'); d.progress = s('department progress'); d.a = s('availability %'); d.f = s('functionality %'); d.u = s('in use %');
+      });
+    }
+    return depts;
+  }
+  function numOf(s) { var n = parseFloat(String(s).replace('%', '')); return isNaN(n) ? null : n; }
+  function zMeter(v) { var z = level(v); return meter(v, z ? 'var(--z)' : '').replace('class="meter"', 'class="meter ' + (z ? z.cls : '') + '"'); }
+
+  function renderTasks() {
+    var depts = S.tasks;
+    $('subtitle').textContent = 'Task breakdown by department · Main, Sub and Final tasks as entered by each department';
+    if (!depts || !depts.length) {
+      $('app').innerHTML = viewSwitch() + '<div class="card state"><b>No task data yet</b>The “Dept Tasks” tab was not found. Run syncDepartments in Apps Script and deploy the latest Code.gs.</div>';
+      bindViewSwitch();
+      return;
+    }
+    if (!S.tkDept || !depts.some(function (x) { return x.name === S.tkDept; })) S.tkDept = depts[0].name;
+    S.tkOpen = S.tkOpen || {};
+    var d = depts.filter(function (x) { return x.name === S.tkDept; })[0];
+    var deptPct = function (x) {
+      var p = numOf(x.progress);
+      if (p === null) { var v = [numOf(x.a), numOf(x.f), numOf(x.u)].filter(function (y) { return y !== null; }); p = v.length ? v.reduce(function (a, b) { return a + b; }, 0) / v.length : null; }
+      return p;
+    };
+
+    var side = '<aside class="card tk-side"><div class="tk-sidehead"><div class="x-lab">Departments</div><button type="button" class="tk-fold" data-tk-side="1" aria-label="' + (S.tkHide ? 'Show departments' : 'Hide departments') + '" title="' + (S.tkHide ? 'Show departments' : 'Hide departments') + '">' + (S.tkHide ? '›' : '‹') + '</button></div><div class="tk-list">' +
+      depts.map(function (x) {
+        var p = deptPct(x);
+        return '<button type="button" class="tk-dept" data-tk-dept="' + esc(x.name) + '" aria-pressed="' + (x === d) + '">' +
+          '<span class="tk-dn">' + esc(x.name) + '</span><span class="tk-dp">' + pct(p) + '</span>' + zMeter(p) + '</button>';
+      }).join('') + '</div></aside>';
+
+    var pill = function (label, v) { var z = level(numOf(v)); return '<div class="tk-pill ' + (z ? z.cls : '') + '"><span>' + label + '</span><b>' + esc(v || '–') + '</b></div>'; };
+    var nSub = 0, nFin = 0;
+    d.mains.forEach(function (m) { nSub += m.subs.length; m.subs.forEach(function (s) { nFin += s.finals.length; }); });
+    var head = '<div class="tk-head"><div><div class="x-lab">Department</div><h2>' + esc(d.name) + '</h2>' +
+      '<p>HOD: <b>' + esc(d.hod || '–') + '</b> · ' + d.mains.length + ' main · ' + nSub + ' sub · ' + nFin + ' final tasks</p></div>' +
+      '<div class="tk-pills">' + pill('Progress', d.progress || pct(deptPct(d))) + pill('Availability', d.a) + pill('Functionality', d.f) + pill('In use', d.u) + '</div></div>';
+
+    var dw = function (v) { return !S.tkDates ? '' : '<td class="tk-d">' + esc(v.date) + '</td><td class="tk-w">' + esc(v.week) + '</td>'; };
+    var pctCell = function (v) {
+      var n = numOf(v.v);
+      return '<td class="tk-v">' + (n === null ? '<span class="tk-na">–</span>' : '<div class="tk-pc">' + zMeter(n) + '<b>' + Math.round(n) + '%</b></div>') + '</td>' + dw(v);
+    };
+    var tickCell = function (v) {
+      var on = /^true$/i.test(v.v);
+      return '<td class="tk-v"><span class="tk-tick' + (on ? ' on' : '') + '" role="img" aria-label="' + (on ? 'Done' : 'Not done') + '">' + (on ? '✓' : '') + '</span></td>' + dw(v);
+    };
+    var rows = '';
+    d.mains.forEach(function (m, mi) {
+      var mk = d.name + '|' + mi, mOpen = S.tkOpen[mk] !== false;
+      rows += '<tr class="tk-main" data-tk-key="' + esc(mk) + '" tabindex="0" aria-expanded="' + mOpen + '"><td><span class="tk-car">' + (mOpen ? '▾' : '▸') + '</span>Main Task</td><td>' + esc(m.no) + '</td><td class="tk-t">' + esc(m.task) + '</td>' + m.vals.map(pctCell).join('') + '</tr>';
+      if (!mOpen) return;
+      m.subs.forEach(function (s, si) {
+        var sk = mk + '|' + si, sOpen = S.tkOpen[sk] === true, has = s.finals.length;
+        rows += '<tr class="tk-sub" data-tk-key="' + esc(sk) + '"' + (has ? ' tabindex="0" aria-expanded="' + sOpen + '"' : '') + '><td><span class="tk-car">' + (has ? (sOpen ? '▾' : '▸') : '') + '</span>Sub Task' + (has ? ' <em>' + has + '</em>' : '') + '</td><td>' + esc(s.no) + '</td><td class="tk-t">' + esc(s.task) + '</td>' + s.vals.map(pctCell).join('') + '</tr>';
+        if (sOpen) s.finals.forEach(function (f) {
+          rows += '<tr class="tk-fin"><td>Final Task</td><td>' + esc(f.no) + '</td><td class="tk-t">' + esc(f.task) + '</td>' + f.vals.map(tickCell).join('') + '</tr>';
+        });
+      });
+    });
+    var table = '<div class="table-wrap tk-wrap"><table class="tk-table"><thead>' +
+      '<tr><th rowspan="2">Task Category</th><th rowspan="2">No</th><th rowspan="2" class="tk-t">Task</th>' + ['Availability', 'Functionality', 'In use'].map(function (h) { return '<th colspan="' + (!S.tkDates ? 1 : 3) + '" class="tk-grp">' + h + '</th>'; }).join('') + '</tr>' +
+      '<tr>' + [0, 1, 2].map(function () { return '<th class="tk-grp">%</th>' + (!S.tkDates ? '' : '<th>Date</th><th>Week No</th>'); }).join('') + '</tr></thead><tbody>' +
+      (rows || '<tr><td colspan="12" class="tk-na">No tasks entered yet.</td></tr>') + '</tbody></table></div>';
+
+    $('app').innerHTML = viewSwitch() + '<div class="tk' + (S.tkHide ? ' tk-hide' : '') + '">' + side +
+      '<section class="card tk-body">' + head +
+      '<div class="tk-tools"><label class="tk-switch"><input type="checkbox" data-tk-dates="1"' + (!S.tkDates ? '' : ' checked') + '> Show Date &amp; Week No</label><span class="tk-gap"></span><button type="button" class="btn" data-tk-all="1">Expand all</button><button type="button" class="btn" data-tk-all="0">Collapse all</button></div>' +
+      table + '</section></div>';
+    bindViewSwitch();
+    var box = $('app').querySelector('.tk');
+    var act = function (e) {
+      if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+      var b = e.target.closest('[data-tk-dept]');
+      if (b) { if (e.type === 'keydown') return; S.tkDept = b.getAttribute('data-tk-dept'); renderTasks(); return; }
+      if (e.type === 'click' && e.target.closest('[data-tk-side]')) { S.tkHide = !S.tkHide; renderTasks(); return; }
+      var all = e.target.closest('[data-tk-all]');
+      if (all) {
+        if (e.type === 'keydown') return;
+        var open = all.getAttribute('data-tk-all') === '1';
+        d.mains.forEach(function (m, mi) { S.tkOpen[d.name + '|' + mi] = open; m.subs.forEach(function (s, si) { S.tkOpen[d.name + '|' + mi + '|' + si] = open; }); });
+        renderTasks(); return;
+      }
+      var tr = e.target.closest('tr[aria-expanded]');
+      if (!tr) return;
+      if (e.type === 'keydown') e.preventDefault();
+      var k = tr.getAttribute('data-tk-key');
+      S.tkOpen[k] = tr.getAttribute('aria-expanded') !== 'true';
+      var scroll = $('app').querySelector('.tk-wrap').scrollTop;
+      renderTasks();
+      $('app').querySelector('.tk-wrap').scrollTop = scroll;
+      var again = Array.prototype.filter.call($('app').querySelectorAll('tr[data-tk-key]'), function (r) { return r.getAttribute('data-tk-key') === k; })[0];
+      if (again) again.focus({ preventScroll: true });
+    };
+    box.addEventListener('change', function (e) { if (e.target.matches('[data-tk-dates]')) { S.tkDates = e.target.checked; try { localStorage.setItem('erp.tkDates', S.tkDates ? '1' : '0'); } catch (err) {} renderTasks(); } });
+    box.addEventListener('click', act);
+    box.addEventListener('keydown', act);
   }
 
   /* ================= Tab 3: Scope & Documentation Tracker ================= */
@@ -961,7 +1138,7 @@ function getDocsCached_() {
 
     var card = function (tone, emoji, label, value, of, sub) {
       var cls = tone === 'green' ? 'good' : tone === 'red' ? 'crit' : tone;
-      return '<div class="card x-fig sd-kpi tone-' + tone + '"><div class="t-top"><div class="x-lab">' + label + '</div><span class="t-emoji" aria-hidden="true">' + emoji + '</span></div>' +
+      return '<div class="card x-fig sd-kpi tone-' + tone + '"><div class="t-top"><div class="x-lab">' + label + '</div><span class="t-emoji" aria-hidden="true">' + icon(emoji) + '</span></div>' +
         '<div class="x-val c-' + cls + '">' + value + (of !== null ? '<small>of ' + of + '</small>' : '') + '</div>' +
         (of !== null ? meter(share(value, of), 'var(--tone)') : '') + '<div class="x-sub">' + sub + '</div></div>';
     };
@@ -973,14 +1150,23 @@ function getDocsCached_() {
 
     var f = S.sdFilter || 'all';
     var chip = function (key, label, num) { return '<button type="button" data-f="' + key + '" aria-pressed="' + (f === key) + '">' + label + ' <b>' + num + '</b></button>'; };
-    var tools = '<div class="sec-head"><div><h2>Departments</h2><p>Click a 📄 file to preview it. Status comes from the BA and Scope tabs; files come from each department folder in Drive.</p></div>' +
+    var tools = '<div class="sec-head"><div><h2>Departments</h2><p>Click a 📄 file to preview it.</p></div>' +
       '<div class="tools"><input id="sd-q" type="search" placeholder="Find a department" aria-label="Find a department" value="' + esc(S.sdQ || '') + '">' +
       '<div class="toggle sd-filter" id="sd-filter">' + chip('all', 'All', n) + chip('pending', 'Scope pending', byStatus[0]) +
       chip('awaiting', 'Awaiting approval', byStatus[1]) + chip('approved', 'Approved', byStatus[2]) +
-      chip('missing', 'Missing files', count(function (r) { return r.missing; })) + '</div></div></div>';
+      chip('missing', 'Missing files', count(function (r) { return r.missing; })) + '</div>' +
+      '<div class="toggle" id="sd-view"><button type="button" data-v="list" aria-pressed="' + (S.sdView !== 'map') + '">☰ List</button>' +
+      '<button type="button" data-v="map" aria-pressed="' + (S.sdView === 'map') + '">🗺 Map</button></div></div></div>';
 
     $('app').innerHTML = '<div class="sd">' + kpis + tools + '<div id="sd-body"></div></div>';
     renderScopeBody();
+    $('sd-view').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-v]');
+      if (!b) return;
+      S.sdView = b.getAttribute('data-v');
+      Array.prototype.forEach.call($('sd-view').children, function (c) { c.setAttribute('aria-pressed', String(c === b)); });
+      renderScopeBody();
+    });
     $('sd-q').addEventListener('input', function (e) { S.sdQ = e.target.value; renderScopeBody(); });
     $('sd-filter').addEventListener('click', function (e) {
       var b = e.target.closest('button[data-f]');
@@ -1000,6 +1186,7 @@ function getDocsCached_() {
       return f === 'all' || (f === 'missing' ? r.missing > 0 : r.status.key === f);
     });
     if (!rows.length) { host.innerHTML = '<div class="card state">No department matches this filter.</div>'; return; }
+    if (S.sdView === 'map') { renderDocMap(host, rows); return; }
 
     /* Compact summary: one row per department; click a row to see and open its documents. */
     var dots = function (r) {
@@ -1023,6 +1210,127 @@ function getDocsCached_() {
           '<td>' + count(r.other.length) + '</td>' +
           '<td class="sd-go">View documents →</td></tr>';
       }).join('') + '</tbody></table></div></div>';
+  }
+
+  /* ================= Document map: ERP Documents → departments → BA / Scope / Other → files ================= */
+  var DM_COL = [0, 250, 560, 790], DM_W = [210, 270, 190, 340], DM_ROW = 48, DM_H = 36;
+
+  function docTree(rows) {
+    var n = function (list) { return list.length; };
+    var total = function (r) { return n(r.ba) + n(r.sc) + n(r.other); };
+    var all = rows.reduce(function (a, r) { return a + total(r); }, 0);
+    return { id: 'root', kind: 'root', label: 'ERP Documents', sub: all + ' files · ' + rows.length + ' departments',
+      children: rows.map(function (r) {
+        return { id: 'd' + r.i, kind: 'dept', label: r.name, cls: r.status.cls, sub: total(r) + ' file' + (total(r) === 1 ? '' : 's'),
+          children: [['ba', 'BA documents', r.ba], ['scope', 'Scope documents', r.sc], ['other', 'Other documents', r.other]].map(function (g) {
+            return { id: 'd' + r.i + g[0], kind: 'group', type: g[0], label: g[1], count: g[2].length,
+              children: g[2].map(function (f, k) {
+                return { id: 'd' + r.i + g[0] + k, kind: 'file', label: f.name, sub: f.updated ? 'Updated ' + fmtDay(f.updated) : '', dept: r.i, type: g[0], idx: k };
+              }) };
+          }) };
+      }) };
+  }
+
+  function renderDocMap(host, rows) {
+    var open = S.dmOpen || (S.dmOpen = { root: true });
+    var view = S.dmView || (S.dmView = { x: 24, y: 24, k: 1 });
+    var tree = docTree(rows), nodes = [], links = [], y = 0;
+
+    // Layout: every visible leaf takes one row; a parent sits in the middle of its children.
+    (function place(nd, depth) {
+      nd.depth = depth; nd.x = DM_COL[depth];
+      var kids = nd.children && nd.children.length && open[nd.id] ? nd.children : [];
+      if (!kids.length) { nd.y = y; y += DM_ROW; }
+      else {
+        kids.forEach(function (k) { place(k, depth + 1); });
+        nd.y = (kids[0].y + kids[kids.length - 1].y) / 2;
+        kids.forEach(function (k) { links.push([nd, k]); });
+      }
+      nodes.push(nd);
+    })(tree, 0);
+    var W = DM_COL[3] + DM_W[3] + 40, H = Math.max(y, DM_ROW);
+
+    var paths = links.map(function (l) {
+      var a = l[0], b = l[1], x1 = a.x + DM_W[a.depth], y1 = a.y + DM_H / 2, x2 = b.x, y2 = b.y + DM_H / 2, mx = (x1 + x2) / 2;
+      return '<path d="M' + x1 + ' ' + y1 + 'C' + mx + ' ' + y1 + ' ' + mx + ' ' + y2 + ' ' + x2 + ' ' + y2 + '"/>';
+    }).join('');
+
+    var html = nodes.map(function (nd) {
+      var has = nd.children && nd.children.length, isOpen = !!open[nd.id];
+      var pos = 'left:' + nd.x + 'px;top:' + nd.y + 'px;width:' + DM_W[nd.depth] + 'px;height:' + DM_H + 'px';
+      var toggle = has ? '<span class="dm-tog" aria-hidden="true">' + (isOpen ? '‹' : '›') + '</span>' : '';
+      if (nd.kind === 'file') {
+        return '<button type="button" class="dm-node dm-file" style="' + pos + '" data-doc-dept="' + nd.dept + '" data-doc-type="' + nd.type + '" data-doc-idx="' + nd.idx + '" title="Preview ' + esc(nd.label) + '">' +
+          '<span class="dm-ic" aria-hidden="true">📄</span><span class="dm-txt"><b>' + esc(nd.label) + '</b>' + (nd.sub ? '<small>' + nd.sub + '</small>' : '') + '</span></button>';
+      }
+      var extra = nd.kind === 'group' ? '<em class="dm-count">' + nd.count + '</em>' : '';
+      var cls = 'dm-node dm-' + nd.kind + (nd.cls ? ' ' + nd.cls : '') + (nd.kind === 'group' && !nd.count ? ' empty' : '') + (has ? ' can-open' : '');
+      return '<div class="' + cls + '" style="' + pos + '"' + (has ? ' data-dm="' + nd.id + '" role="button" tabindex="0" aria-expanded="' + isOpen + '"' : '') + '>' +
+        (nd.kind === 'dept' ? '<i class="zdot"></i>' : '') + '<span class="dm-txt"><b>' + esc(nd.label) + '</b>' +
+        (nd.sub ? '<small>' + esc(nd.sub) + '</small>' : nd.kind === 'group' && !nd.count ? '<small>Not uploaded</small>' : '') + '</span>' + extra + toggle + '</div>';
+    }).join('');
+
+    host.innerHTML = '<div class="card dm">' +
+      '<div class="dm-bar"><span class="dm-hint">Click a box to open or close it · drag to move · scroll to zoom · click a 📄 file to preview</span>' +
+      '<div class="dm-tools"><button type="button" class="btn" data-dm-act="expand">Expand all</button><button type="button" class="btn" data-dm-act="collapse">Collapse all</button>' +
+      '<button type="button" class="btn dm-z" data-dm-act="out" aria-label="Zoom out">−</button><button type="button" class="btn dm-z" data-dm-act="in" aria-label="Zoom in">+</button>' +
+      '<button type="button" class="btn" data-dm-act="reset">Reset view</button></div></div>' +
+      '<div class="dm-view" id="dm-view"><div class="dm-canvas" id="dm-canvas" style="width:' + W + 'px;height:' + H + 'px">' +
+      '<svg class="dm-links" width="' + W + '" height="' + H + '" aria-hidden="true">' + paths + '</svg>' + html + '</div></div></div>';
+
+    var canvas = $('dm-canvas'), vp = $('dm-view');
+    var apply = function () { canvas.style.transform = 'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.k + ')'; };
+    var zoom = function (f, cx, cy) {
+      var k = Math.max(0.4, Math.min(2, view.k * f));
+      if (cx === undefined) { var b = vp.getBoundingClientRect(); cx = b.width / 2; cy = b.height / 2; }
+      view.x = cx - (cx - view.x) * k / view.k; view.y = cy - (cy - view.y) * k / view.k; view.k = k; apply();
+    };
+    apply();
+
+    // open / close a branch
+    var toggleNode = function (id) { open[id] = !open[id]; renderDocMap(host, rows); };
+    vp.addEventListener('click', function (e) {
+      var nd = e.target.closest('[data-dm]');
+      if (nd && !vp.dragged) toggleNode(nd.getAttribute('data-dm'));
+    });
+    vp.addEventListener('keydown', function (e) {
+      var nd = e.target.closest('[data-dm]');
+      if (nd && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleNode(nd.getAttribute('data-dm')); }
+    });
+    // drag to move, wheel to zoom
+    var drag = null;
+    vp.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0) return;
+      drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; vp.dragged = false;
+    });
+    window.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) { vp.dragged = true; vp.classList.add('grabbing'); }
+      if (vp.dragged) { view.x = drag.vx + dx; view.y = drag.vy + dy; apply(); }
+    });
+    window.addEventListener('pointerup', function () { drag = null; vp.classList.remove('grabbing'); setTimeout(function () { vp.dragged = false; }, 0); });
+    vp.addEventListener('click', function (e) { if (vp.dragged) { e.stopPropagation(); e.preventDefault(); } }, true);
+    vp.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var b = vp.getBoundingClientRect();
+      zoom(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - b.left, e.clientY - b.top);
+    }, { passive: false });
+    // toolbar
+    host.querySelector('.dm-tools').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-dm-act]');
+      if (!b) return;
+      var act = b.getAttribute('data-dm-act');
+      if (act === 'in') zoom(1.2);
+      else if (act === 'out') zoom(1 / 1.2);
+      else if (act === 'reset') { S.dmView = { x: 24, y: 24, k: 1 }; renderDocMap(host, rows); }
+      else if (act === 'collapse') { S.dmOpen = { root: true }; S.dmView = { x: 24, y: 24, k: 1 }; renderDocMap(host, rows); }
+      else if (act === 'expand') {
+        var o = { root: true };
+        tree.children.forEach(function (d) { o[d.id] = true; d.children.forEach(function (g) { if (g.count) o[g.id] = true; }); });
+        S.dmOpen = o; renderDocMap(host, rows);
+      }
+    });
   }
 
   /* Popup with every document of one department: BA, Scope and Other; click a file to preview it. */
@@ -1064,7 +1372,7 @@ function getDocsCached_() {
       ? ['📄', 'Scope & Documentation Tracker', 'Resolves foundational gaps regarding missing scope documents and formal baseline agreements to ensure rigorous project governance.']
       : ['🐞', 'Master Issue / Bug Log', 'A centralized, department-categorized repository for all operational bugs and technical discrepancies, streamlining communication and tracking with the external vendor.'];
     $('subtitle').textContent = info[1];
-    $('app').innerHTML = '<section class="card soon"><div class="t-emoji" aria-hidden="true">' + info[0] + '</div><span class="x-status">Coming soon</span><h2>' + info[1] + '</h2><p>' + info[2] + '</p></section>';
+    $('app').innerHTML = '<section class="card soon"><div class="t-emoji" aria-hidden="true">' + icon(info[0], 30) + '</div><span class="x-status">Coming soon</span><h2>' + info[1] + '</h2><p>' + info[2] + '</p></section>';
   }
 
   var enterTimer;
@@ -1078,7 +1386,7 @@ function getDocsCached_() {
       return;
     }
     Array.prototype.forEach.call($('tabs').children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-tab') === S.tab)); });
-    if (S.tab === 'summary') { renderSummary(animate); return; }
+    if (S.tab === 'summary') { if (S.sumView === 'tasks') renderTasks(); else renderSummary(animate); return; }
     if (S.tab === 'scope') { renderScope(); return; }
     if (S.tab !== 'tracker') { renderSoon(S.tab); return; }
     var wk = m.weeks[S.sel];
@@ -1141,6 +1449,7 @@ function getDocsCached_() {
       } else if (why) logoNote();
     }
     S.model = build(data);
+    S.tasks = taskModel(data);
     if (!S.picked || S.sel >= S.model.weeks.length) S.sel = S.model.latest;   // follow the newest week unless the viewer chose one
     $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     var sig = JSON.stringify(data.tabs);     // animate only on first load or when the sheet actually changed
@@ -1157,8 +1466,7 @@ function getDocsCached_() {
   (function () {
     var saved = null;
     try { saved = localStorage.getItem('erp-theme'); } catch (e) {}
-    var system = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    setTheme(saved === 'dark' || saved === 'light' ? saved : system, false);
+    setTheme(saved === 'dark' || saved === 'light' ? saved : 'dark', false);   // dark unless the viewer chose light
   })();
   $('theme').addEventListener('click', function () {
     setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
@@ -1226,7 +1534,7 @@ function getDocsCached_() {
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDept(); });
   $('refresh').addEventListener('click', load);
   var resizeTimer;
-  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { if (S.model) { drawCharts(); drawJourney(false); placePops(); if (S.tab === 'summary') drawOverall(); } }, 150); });
+  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { if (S.model) { drawCharts(); drawJourney(false); placePops(); if (S.tab === 'summary' && S.sumView !== 'tasks') drawOverall(); } }, 150); });
   $('tabs').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-tab]');
     if (!b || !S.model || b.getAttribute('data-tab') === S.tab) return;
