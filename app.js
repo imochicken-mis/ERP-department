@@ -870,9 +870,6 @@ function getDocsCached_() {
         '<div class="x-gauge ' + z.cls + '">' + gauge(overall.v) + '<div class="x-gnum"><span class="x-big">' + pct(overall.v) + '</span></div></div>' +
         '<div class="x-gmeta"><span class="x-tag ' + z.cls + '"><i class="zdot"></i>' + statusText + '</span><span class="x-d">' + deltaTag(T.overall, overall, { unit: '%' }) + '</span></div>' +
       '</div></div><div class="x-overall-usage">' +
-        '<div class="x-lab">Departments by ERP usage</div>' +
-        '<div class="x-stack">' + ZONES.slice().reverse().map(function (zz, k) { return counts[2 - k] ? '<i class="' + zz.cls + '" style="flex:' + counts[2 - k] + '"></i>' : ''; }).join('') + '</div>' +
-        '<div class="x-legend">' + ZONES.slice().reverse().map(function (zz, k) { return '<span class="' + zz.cls + '"><i class="zdot"></i><b>' + counts[2 - k] + '</b> ' + zz.name + '</span>'; }).join('') + (totalZ < n ? '<span>' + (n - totalZ) + ' no data</span>' : '') + '</div>' +
         (old.length ? '<p class="x-note">' + old.map(function (p) { return p[0]; }).join(', ') + ' not yet updated for ' + esc(wk.label) + '; last figures used.</p>' : '') +
       '</div>' +
       '</section>';
